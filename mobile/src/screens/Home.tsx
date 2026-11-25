@@ -6,6 +6,7 @@ import { Btn, Card, Chip, H, LinkBtn, Row, Screen, T } from '../components/ui';
 import { useTheme } from '../components/theme';
 import type { HabitLevel } from '../lib/types';
 import type { Tab } from '../../App';
+import { installedBuild, startUpdate } from '../lib/updates';
 
 export default function Home({ go }: { go: (t: Tab) => void }) {
   const { data, update } = useStore();
@@ -29,8 +30,24 @@ export default function Home({ go }: { go: (t: Tab) => void }) {
 
   const daysSinceBackup = data.settings.lastBackupAt ? Math.floor((Date.now() - new Date(data.settings.lastBackupAt).getTime()) / 86400000) : null;
 
+  const upd = data.settings.availableUpdate;
+  const current = installedBuild();
+  const showUpdate = !!upd && current !== null && upd.build > current && data.settings.dismissedUpdateBuild !== upd.build;
+
   return (
     <Screen>
+      {showUpdate && upd && (
+        <Card style={{ borderColor: t.desired, borderWidth: 2 }}>
+          <H level={3}>A new version is ready 🌱</H>
+          <T small muted style={{ marginBottom: 10 }}>
+            Build {upd.build} · about {upd.sizeMb} MB (Wi-Fi is best). Your entries stay — Android will say “Update”. A quick backup first is a good habit.
+          </T>
+          <Row>
+            <Btn title="Later" style={{ flex: 1 }} onPress={() => update((d) => ({ ...d, settings: { ...d.settings, dismissedUpdateBuild: upd.build } }))} />
+            <Btn primary title="Update" style={{ flex: 1 }} onPress={() => startUpdate(upd)} />
+          </Row>
+        </Card>
+      )}
       <T muted>{greet},</T>
       <H>{p.name || 'friend'} 🌿</H>
 

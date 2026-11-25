@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BackHandler, Pressable, Text, View } from 'react-native';
+import { AppState, BackHandler, Pressable, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { DataProvider, useStore } from './src/lib/store';
@@ -12,6 +12,7 @@ import Journal from './src/screens/Journal';
 import Self from './src/screens/Self';
 import Rhythm from './src/screens/Rhythm';
 import More, { BackupCard } from './src/screens/More';
+import { checkForUpdate, shouldAutoCheck } from './src/lib/updates';
 
 export type Tab = 'home' | 'checkin' | 'journal' | 'self' | 'rhythm' | 'more';
 
@@ -33,8 +34,28 @@ function FirstRunRestore({ back }: { back: () => void }) {
   );
 }
 
+/** Quietly looks for a newer APK on launch and when the app returns to the foreground. */
+function useUpdateCheck() {
+  const { data, update } = useStore();
+  const last = data.settings.lastUpdateCheck;
+  useEffect(() => {
+    const run = () => {
+      if (!shouldAutoCheck(last)) return;
+      checkForUpdate()
+        .then((u) =>
+          update((d) => ({ ...d, settings: { ...d.settings, lastUpdateCheck: new Date().toISOString(), availableUpdate: u ?? undefined } })),
+        )
+        .catch(() => {}); // offline: try again next time
+    };
+    run();
+    const sub = AppState.addEventListener('change', (st) => st === 'active' && run());
+    return () => sub.remove();
+  }, [last, update]);
+}
+
 function Shell() {
   const { data } = useStore();
+  useUpdateCheck();
   const t = useTheme();
   const [tab, setTab] = useState<Tab>('home');
   const [restoring, setRestoring] = useState(false);

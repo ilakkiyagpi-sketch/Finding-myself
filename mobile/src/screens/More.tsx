@@ -8,6 +8,7 @@ import { backupToDrive, friendlyGoogleError, restoreFromDrive, signedInEmail, si
 import { decryptText, encryptText, isEncrypted } from '../lib/crypto';
 import { SEASONS, type AppData, type Country } from '../lib/types';
 import { Btn, Card, Choice, Field, H, Helplines, LinkBtn, Row, Screen, T, confirmAsync } from '../components/ui';
+import { checkForUpdate, installedBuild, startUpdate } from '../lib/updates';
 
 const isAppData = (x: unknown): x is AppData =>
   typeof x === 'object' && x !== null && (x as AppData).version === 1 && Array.isArray((x as AppData).checkIns);
@@ -154,6 +155,43 @@ export function BackupCard({ firstRun }: { firstRun?: boolean }) {
   );
 }
 
+function UpdateCard() {
+  const { update } = useStore();
+  const [status, setStatus] = useState('');
+  const [busy, setBusy] = useState(false);
+  const current = installedBuild();
+  if (current === null) return null; // web preview / development
+
+  const check = async () => {
+    setBusy(true);
+    setStatus('Checking…');
+    try {
+      const u = await checkForUpdate();
+      update((d) => ({ ...d, settings: { ...d.settings, lastUpdateCheck: new Date().toISOString(), availableUpdate: u ?? undefined, dismissedUpdateBuild: undefined } }));
+      if (!u) setStatus('✅ You have the latest version.');
+      else {
+        setStatus(`Build ${u.build} is available (about ${u.sizeMb} MB). Opening download…`);
+        await startUpdate(u);
+      }
+    } catch {
+      setStatus('⚠️ Couldn’t check right now. Are you online?');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <H level={3}>📲 App updates</H>
+      <T small muted style={{ marginBottom: 8 }}>
+        You have build {current}. New versions install on top of this one — your entries stay.
+      </T>
+      <Btn title="Check for updates" disabled={busy} onPress={check} />
+      {!!status && <T bold style={{ marginTop: 10 }}>{status}</T>}
+    </Card>
+  );
+}
+
 export default function More() {
   const { data, update, wipe } = useStore();
   const p = data.profile!;
@@ -210,7 +248,8 @@ export default function More() {
           }}
         />
       </Card>
-      <T small muted style={{ textAlign: 'center' }}>Finding Myself v0.1 · made with care</T>
+      <UpdateCard />
+      <T small muted style={{ textAlign: 'center' }}>Finding Myself v0.1{installedBuild() ? ` · build ${installedBuild()}` : ''} · made with care</T>
     </Screen>
   );
 }
