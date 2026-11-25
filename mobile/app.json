@@ -13,8 +13,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#FBFAF9"
       },
       "predictiveBackGestureEnabled": false,
       "package": "com.findingmyself.app",
@@ -62,13 +61,9 @@
         "expo-splash-screen",
         {
           "image": "./assets/splash-icon.png",
-          "imageWidth": 180,
+          "imageWidth": 220,
           "resizeMode": "contain",
-          "backgroundColor": "#FAF6F2",
-          "dark": {
-            "image": "./assets/splash-icon.png",
-            "backgroundColor": "#15111A"
-          }
+          "backgroundColor": "#FBFAF9"
         }
       ]
     ],
