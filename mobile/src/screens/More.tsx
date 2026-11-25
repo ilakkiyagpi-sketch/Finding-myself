@@ -296,6 +296,15 @@ export default function More({ go }: { go: (t: Tab) => void }) {
       <BackupCard />
 
       <Card>
+        <H level={3}>Language / மொழி</H>
+        <Row style={{ gap: 8 }}>
+          <Choice label="English" on={(data.settings.language ?? 'en') === 'en'} onPress={() => update((d) => ({ ...d, settings: { ...d.settings, language: 'en' } }))} style={{ flex: 1 }} />
+          <Choice label="தமிழ்" on={data.settings.language === 'ta'} onPress={() => update((d) => ({ ...d, settings: { ...d.settings, language: 'ta' } }))} style={{ flex: 1 }} />
+        </Row>
+        <T small muted style={{ marginTop: 6 }}>Tamil covers the screens you use every day; the rest is being translated.</T>
+      </Card>
+
+      <Card>
         <H level={3}>🌿 My season & profile</H>
         <Field label="Name" value={p.name} onChangeText={(v) => update((d) => ({ ...d, profile: { ...d.profile!, name: v } }))} />
         <T bold style={{ marginBottom: 6 }}>Season of life</T>
@@ -323,6 +332,7 @@ export default function More({ go }: { go: (t: Tab) => void }) {
         <H level={3}>💛 If things feel too heavy</H>
         <T small muted>This app is a companion, not therapy. Please reach out — you deserve support.</T>
         <Helplines />
+        <Btn title="📝 Take the wellbeing check (EPDS, 2 minutes)" onPress={() => go('wellbeing')} />
       </Card>
 
       <LockCard />

@@ -21,6 +21,7 @@ import { useTheme } from './theme';
 import { DIMENSIONS, type Scores } from '../lib/types';
 import { HELPLINES } from '../lib/safety';
 import { useStore } from '../lib/store';
+import { tr } from '../lib/i18n';
 
 // ---------- Text ----------
 export function T({
@@ -50,7 +51,7 @@ export function T({
         style,
       ]}
     >
-      {children}
+      {typeof children === 'string' ? tr(children) : children}
     </Text>
   );
 }
@@ -123,7 +124,7 @@ export function Btn({
         style,
       ]}
     >
-      <Text style={{ color: primary ? t.primaryInk : danger ? t.danger : t.text, fontWeight: '700', fontSize: 16, textAlign: 'center' }}>{title}</Text>
+      <Text style={{ color: primary ? t.primaryInk : danger ? t.danger : t.text, fontWeight: '700', fontSize: 16, textAlign: 'center' }}>{tr(title)}</Text>
     </Pressable>
   );
 }
@@ -132,7 +133,7 @@ export function LinkBtn({ title, onPress, danger }: { title: string; onPress: ()
   const t = useTheme();
   return (
     <Pressable accessibilityRole="button" onPress={onPress} hitSlop={10} style={{ paddingVertical: 8, minHeight: 40, justifyContent: 'center' }}>
-      <Text style={{ color: danger ? t.danger : t.primary, fontWeight: '700', fontSize: 15.5 }}>{title}</Text>
+      <Text style={{ color: danger ? t.danger : t.primary, fontWeight: '700', fontSize: 15.5 }}>{tr(title)}</Text>
     </Pressable>
   );
 }
@@ -146,7 +147,7 @@ export function Chip({ label, on, onPress }: { label: string; on?: boolean; onPr
       onPress={onPress}
       style={[s.chip, { borderColor: on ? t.primary : t.line, backgroundColor: on ? t.primarySoft : t.bg }]}
     >
-      <Text style={{ color: t.text, fontWeight: on ? '700' : '400', fontSize: 15 }}>{label}</Text>
+      <Text style={{ color: t.text, fontWeight: on ? '700' : '400', fontSize: 15 }}>{tr(label)}</Text>
     </Pressable>
   );
 }
@@ -171,7 +172,7 @@ export function Choice({ label, on, onPress, disabled, style }: { label: string;
       onPress={onPress}
       style={[s.choice, { borderColor: on ? t.primary : t.line, backgroundColor: on ? t.primarySoft : t.surface }, style]}
     >
-      <Text style={{ color: t.text, fontWeight: on ? '700' : '400', fontSize: 16 }}>{label}</Text>
+      <Text style={{ color: t.text, fontWeight: on ? '700' : '400', fontSize: 16 }}>{tr(label)}</Text>
     </Pressable>
   );
 }
@@ -188,7 +189,7 @@ export function Segmented<K extends string>({ options, value, onChange }: { opti
           accessibilityRole="tab"
           accessibilityState={{ selected: value === o.key }}
         >
-          <Text style={{ color: t.text, fontWeight: '700' }}>{o.label}</Text>
+          <Text style={{ color: t.text, fontWeight: '700' }}>{tr(o.label)}</Text>
         </Pressable>
       ))}
     </ScrollView>
@@ -203,6 +204,7 @@ export function Field({ label, hint, ...props }: TextInputProps & { label?: stri
       <TextInput
         placeholderTextColor={t.muted}
         {...props}
+        placeholder={props.placeholder ? tr(props.placeholder) : undefined}
         style={[
           s.input,
           { color: t.text, borderColor: t.line, backgroundColor: t.bg },
@@ -237,7 +239,7 @@ export function Slider({
     <View style={{ marginBottom: 12 }}>
       <Row style={{ justifyContent: 'space-between' }}>
         <T style={{ flex: 1 }}>{label}</T>
-        <T bold>{value}</T>
+        <T bold>{String(value)}</T>
       </Row>
       <RNSlider
         accessibilityLabel={label}

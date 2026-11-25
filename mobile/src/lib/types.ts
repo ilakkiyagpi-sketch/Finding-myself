@@ -150,6 +150,7 @@ export interface Settings {
   planSkippedOn?: string; // YYYY-MM-DD: "not today" tapped on the morning plan
   appLock?: boolean; // fingerprint / device PIN when opening the app
   autoBackup?: boolean; // weekly Google Drive backup when the app opens
+  language?: 'en' | 'ta';
 }
 
 // ---------- Rewind (life story) ----------
@@ -216,6 +217,13 @@ export interface WeeklyReview {
   doneAt: string;
 }
 
+export interface WellbeingCheck {
+  date: string; // YYYY-MM-DD
+  answers: number[]; // EPDS item scores 0-3
+  score: number;
+  selfHarm: number; // item 10 score
+}
+
 export interface AppData {
   version: 1;
   profile?: Profile;
@@ -232,6 +240,7 @@ export interface AppData {
   letters: Letter[];
   loadTasks: LoadTask[];
   weeklyReviews: WeeklyReview[];
+  wellbeingChecks: WellbeingCheck[];
   settings: Settings;
   updatedAt: string;
 }
@@ -251,6 +260,7 @@ export const emptyData = (): AppData => ({
   letters: [],
   loadTasks: [],
   weeklyReviews: [],
+  wellbeingChecks: [],
   settings: {
     country: 'IN',
     wakeTime: '07:00',

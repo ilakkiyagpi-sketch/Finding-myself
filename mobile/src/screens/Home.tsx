@@ -14,6 +14,7 @@ import { useState } from 'react';
 import Garden from '../components/Garden';
 import StressRelease from '../components/StressRelease';
 import { reviewDue } from './Review';
+import { tr } from '../lib/i18n';
 
 export default function Home({ go, openPlan, openReview, openLetters }: { go: (t: Tab) => void; openPlan: (v: PlanView, date?: string) => void; openReview: (weekStart: string) => void; openLetters: () => void }) {
   const [calm, setCalm] = useState(false);
@@ -56,7 +57,7 @@ export default function Home({ go, openPlan, openReview, openLetters }: { go: (t
           </Row>
         </Card>
       )}
-      <T muted>{greet},</T>
+      <T muted>{`${tr(greet)},`}</T>
       <H>{p.name || 'friend'} 🌿</H>
 
       <Card style={{ backgroundColor: t.primarySoft }}>
@@ -67,7 +68,7 @@ export default function Home({ go, openPlan, openReview, openLetters }: { go: (t
             ['NEXT', p.wordsWant],
           ].map(([label, words]) => (
             <View key={label as string} style={{ flex: 1 }}>
-              <T small muted>{label as string}</T>
+              <T small muted>{tr(label as string)}</T>
               <T bold>{(words as string[]).join(' · ') || '—'}</T>
             </View>
           ))}

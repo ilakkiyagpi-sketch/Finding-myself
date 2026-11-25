@@ -8,6 +8,7 @@ import { addPhoto, deleteMedia, keepRecording, mediaUri } from '../lib/media';
 import { Btn, Card, Chip, Field, H, LinkBtn, Row, Screen, Segmented, T, confirmAsync, useSupportSheet } from '../components/ui';
 import { useTheme } from '../components/theme';
 import type { JournalEntry } from '../lib/types';
+import Dictate from '../components/Dictate';
 
 const hashtags = (text: string) => [...new Set((text.match(/#[\p{L}\p{N}_-]+/gu) ?? []).map((h) => h.toLowerCase()))];
 const native = Platform.OS !== 'web';
@@ -133,6 +134,7 @@ function Writer({ close }: { close: () => void }) {
         </View>
       )}
       <Field multiline value={text} onChangeText={setText} placeholder="Write freely. No one else will read this. Add #tags if you like." style={{ minHeight: 220, fontSize: 17 }} />
+      <Dictate onText={(spoken) => setText((cur) => (cur.trim() ? `${cur.trimEnd()} ${spoken}` : spoken))} />
       {photos.map((p) => (
         <Photo key={p} name={p} onRemove={() => { deleteMedia([p]); setPhotos((xs) => xs.filter((x) => x !== p)); }} />
       ))}

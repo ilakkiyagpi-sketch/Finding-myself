@@ -10,7 +10,7 @@ const WEB_KEY = 'finding-myself-data-v1';
 
 // Data lives in one JSON file in the app's private document folder.
 // Other apps cannot read it; uninstalling the app deletes it (so keep Google backups).
-async function load(): Promise<AppData | null> {
+export async function load(): Promise<AppData | null> {
   if (Platform.OS === 'web') {
     const raw = globalThis.localStorage?.getItem(WEB_KEY);
     return raw ? JSON.parse(raw) : null;

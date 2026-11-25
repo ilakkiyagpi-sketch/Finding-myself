@@ -6,6 +6,7 @@ import { needsSupport } from '../lib/safety';
 import { Btn, Card, Chip, Chips, Field, H, Row, Screen, Slider, T, useSupportSheet } from '../components/ui';
 import { useTheme } from '../components/theme';
 import type { Quadrant } from '../lib/types';
+import Dictate from '../components/Dictate';
 
 export default function CheckIn({ done }: { done: () => void }) {
   const { data, update } = useStore();
@@ -108,6 +109,7 @@ export default function CheckIn({ done }: { done: () => void }) {
           onChangeText={setMattered}
           placeholder="Baby laughed at the window. I had chai alone for 10 minutes."
         />
+        <Dictate onText={(spoken) => setMattered((cur) => (cur.trim() ? `${cur.trimEnd()} ${spoken}` : spoken))} />
       </Card>
       {support.sheet}
     </Screen>

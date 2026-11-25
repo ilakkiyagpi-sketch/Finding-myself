@@ -6,6 +6,7 @@ import * as Notifications from 'expo-notifications';
 import { todayStr } from './dates';
 import { addDays, at, eventsOn, parseTime, prettyDate, upcoming, yearsSince } from './planner';
 import type { AppData } from './types';
+import { setLang, tr } from './i18n';
 
 export type NotifyTarget = { screen: 'plan' | 'evening' | 'year' | 'review' | 'letters' | 'self'; date?: string };
 
@@ -78,6 +79,7 @@ async function rebuild(d: AppData) {
   await Notifications.cancelAllScheduledNotificationsAsync();
   if (!d.profile) return;
   const s = d.settings;
+  setLang(s.language);
   const now = Date.now();
   const today = todayStr();
   const name = d.profile.name || 'friend';
@@ -91,9 +93,9 @@ async function rebuild(d: AppData) {
       if (i === 0 && d.dayPlans.some((p) => p.date === date)) continue; // already planned today
       const evs = eventsOn(d.events, date);
       const body = evs.length
-        ? `Today: ${evs.map((e) => `${e.emoji} ${e.title}${e.time ? ' ' + e.time : ''}`).join(' · ')}. What else is your plan?`
-        : 'What’s your plan for today? Two minutes, just for you.';
-      await schedule(when, `Good morning, ${name} 🌿`, body, { screen: 'plan', date });
+        ? `${tr('Today')}: ${evs.map((e) => `${e.emoji} ${e.title}${e.time ? ' ' + e.time : ''}`).join(' · ')}. ${tr('What else is your plan?')}`
+        : tr('What’s your plan for today? Two minutes, just for you.');
+      await schedule(when, `${tr('Good morning')}, ${name} 🌿`, body, { screen: 'plan', date });
     }
   }
 
@@ -101,14 +103,14 @@ async function rebuild(d: AppData) {
   if (s.remindEvening) {
     const { hour, minute } = parseTime(s.eveningTime, '21:00');
     await Notifications.scheduleNotificationAsync({
-      content: { title: 'Time to tick your day ✓', body: 'What got done, what moves to tomorrow — and what went well?', data: { screen: 'evening' } },
+      content: { title: tr('Time to tick your day ✓'), body: tr('What got done, what moves to tomorrow — and what went well?'), data: { screen: 'evening' } },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute, channelId: CHANNEL },
     });
   }
 
   // Sunday review, 6 pm.
   await Notifications.scheduleNotificationAsync({
-    content: { title: 'Your Sunday review 🌿', body: 'Five minutes: wins, what was hard, one change for next week.', data: { screen: 'review' } },
+    content: { title: tr('Your Sunday review 🌿'), body: tr('Five minutes: wins, what was hard, one change for next week.'), data: { screen: 'review' } },
     trigger: { type: Notifications.SchedulableTriggerInputTypes.WEEKLY, weekday: 1, hour: 18, minute: 0, channelId: CHANNEL },
   });
 
@@ -116,14 +118,14 @@ async function rebuild(d: AppData) {
   for (const l of d.letters) {
     if (l.openedAt) continue;
     const when = at(l.openOn, s.eventReminderTime);
-    if (when.getTime() > now) await schedule(when, '💌 A letter from your past self', 'It’s ready to open today.', { screen: 'letters' });
+    if (when.getTime() > now) await schedule(when, tr('💌 A letter from your past self'), tr('It’s ready to open today.'), { screen: 'letters' });
   }
 
   // Monthly self-graph re-score, 30 days after the last snapshot.
   const lastSnap = d.snapshots[d.snapshots.length - 1];
   if (lastSnap) {
     const when = at(addDays(lastSnap.date.slice(0, 10), 30), s.eventReminderTime);
-    if (when.getTime() > now) await schedule(when, 'How have you changed this month? 🪞', 'Re-score your self graph — two minutes.', { screen: 'self' });
+    if (when.getTime() > now) await schedule(when, tr('How have you changed this month? 🪞'), tr('Re-score your self graph — two minutes.'), { screen: 'self' });
   }
 
   // Year planner events.

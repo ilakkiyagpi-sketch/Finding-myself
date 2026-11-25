@@ -1,5 +1,6 @@
 import { DIMENSIONS, SEASONS, type AppData, type CheckIn, type GraphSnapshot } from './types';
 import { tagLabel } from './prompts';
+import { tr } from './i18n';
 import { daysAgoStr, todayStr } from './dates';
 
 export interface Piece {
@@ -87,7 +88,7 @@ export function homeInsight(d: AppData): string {
     const pick = good[good.length - 1];
     options.push(`On a day you felt like yourself, what mattered was: “${pick.mattered.slice(0, 90)}”.`);
   }
-  if (!options.length) return 'Small, honest steps. You were never lost — just rearranged.';
+  if (!options.length) return tr('Small, honest steps. You were never lost — just rearranged.');
   const idx = new Date().getDate() % options.length;
   return options[idx];
 }
