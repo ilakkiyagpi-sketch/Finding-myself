@@ -103,6 +103,9 @@ export interface Settings {
   googleClientId?: string;
   lastBackupAt?: string;
   toughDay?: string; // YYYY-MM-DD when "tough day" mode is on
+  lastUpdateCheck?: string; // ISO time of the last check for a new app version
+  availableUpdate?: { build: number; url: string; sizeMb: number; publishedAt: string };
+  dismissedUpdateBuild?: number; // "Later" was tapped for this build
 }
 
 export interface AppData {

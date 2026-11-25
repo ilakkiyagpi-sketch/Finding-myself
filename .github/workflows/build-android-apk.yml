@@ -61,7 +61,8 @@ jobs:
 
       - name: Build release APK
         working-directory: mobile/android
-        run: ./gradlew assembleRelease --no-daemon
+        # arm64 only: every Android phone from the last ~8 years; keeps the download ~3x smaller.
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a
 
       - name: Sign APK with the app's release key
         env:
@@ -95,6 +96,23 @@ jobs:
           "$ANDROID_HOME/build-tools/$BT/apksigner" verify --print-certs ../out/finding-myself.apk | grep -i "SHA-1"
           rm -f "$RUNNER_TEMP/release.jks"
 
+      - name: Write version.json (read by the app's update check)
+        working-directory: .
+        run: |
+          node -e '
+            const fs = require("fs");
+            fs.writeFileSync("out/version.json", JSON.stringify({
+              build: Number(process.env.RUN_NUMBER),
+              apk: "finding-myself.apk",
+              sizeBytes: fs.statSync("out/finding-myself.apk").size,
+              publishedAt: new Date().toISOString(),
+              commit: process.env.SHA,
+            }, null, 2));'
+          cat out/version.json
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+          SHA: ${{ github.sha }}
+
       - uses: actions/upload-artifact@v4
         with:
           name: finding-myself-apk
@@ -106,7 +124,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest-apk --yes --cleanup-tag 2>/dev/null || true
-          gh release create latest-apk out/finding-myself.apk \
+          gh release create latest-apk out/finding-myself.apk out/version.json \
             --title "Finding Myself — Android app (build ${{ github.run_number }})" \
             --notes "Open this page on your Android phone and tap finding-myself.apk to download and install. Built from ${{ github.sha }}." \
             --prerelease --target "${{ github.sha }}"

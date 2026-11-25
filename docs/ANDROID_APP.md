@@ -51,7 +51,13 @@ GitHub → repo → **Settings → Secrets and variables → Actions → Secrets
    Play Protect may warn that the app is unknown (it isn't from the Play Store) → *Install anyway*.
 3. Open **Finding Myself** → finish the welcome → **More → Back up now** → pick your Google account → allow.
 
-**Updates:** run the workflow again and install the new APK over the old one — data stays.
+**Updates:** no reinstall needed. Each build gets a higher version number and the same signing key,
+so it installs *over* the old app and all entries stay. The app checks for a new build on launch
+(at most every 6 hours) and shows **"A new version is ready 🌱 · Update"** on Home; tapping it
+downloads the APK and Android offers **Update**. You can also check by hand in **More → App updates**.
+(The check reads a small `version.json` published beside the APK on the `latest-apk` release.)
+
+The APK is built for 64-bit ARM phones (practically every Android phone since ~2017).
 
 **New phone:** install the APK → on the welcome screen tap
 *"I already have a backup — restore it"* → sign in → restore.

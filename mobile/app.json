@@ -30,7 +30,8 @@
     ],
     "scheme": "findingmyself",
     "extra": {
-      "googleWebClientId": ""
+      "googleWebClientId": "",
+      "updateRepo": "ilakkiyagpi-sketch/Finding-myself"
     }
   }
 }
