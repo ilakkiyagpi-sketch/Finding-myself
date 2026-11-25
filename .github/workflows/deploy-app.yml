@@ -1,9 +1,7 @@
 name: Deploy app to GitHub Pages
 
+# Web (PWA) version. Manual only: enable GitHub Pages (Settings -> Pages -> Source: GitHub Actions) first.
 on:
-  push:
-    branches: [main]
-    paths: ['app/**', '.github/workflows/deploy-app.yml']
   workflow_dispatch:
 
 permissions:

@@ -66,9 +66,8 @@ jobs:
       - name: Sign APK with the app's release key
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          RAW_KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          RAW_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           set -euo pipefail
           APK=android/app/build/outputs/apk/release/app-release.apk
@@ -78,11 +77,20 @@ jobs:
             cp "$APK" ../out/finding-myself.apk
             exit 0
           fi
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          # Secrets pasted on a phone often pick up invisible characters (non-breaking spaces,
+          # line breaks, zero-width marks). The generated values are plain ASCII, so keep only that.
+          export KS_PASS=$(printf '%s' "$RAW_KS_PASS" | LC_ALL=C tr -cd '\041-\176')
+          KEY_ALIAS=$(printf '%s' "$RAW_KEY_ALIAS" | LC_ALL=C tr -cd '\041-\176')
+          printf '%s' "$KEYSTORE_B64" | LC_ALL=C tr -cd 'A-Za-z0-9+/=' | base64 -d > "$RUNNER_TEMP/release.jks"
+          # A PKCS12 keystore uses the same password for the store and the key.
+          if ! keytool -list -keystore "$RUNNER_TEMP/release.jks" -storepass "$KS_PASS" -alias "$KEY_ALIAS" > /dev/null 2>&1; then
+            echo "::error::The signing key could not be opened. Re-check the ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD and ANDROID_KEY_ALIAS secrets against SIGNING-KEY-README.txt."
+            exit 1
+          fi
           BT=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
           "$ANDROID_HOME/build-tools/$BT/apksigner" sign \
             --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KS_PASS \
-            --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASS \
+            --ks-key-alias "$KEY_ALIAS" --key-pass env:KS_PASS \
             --out ../out/finding-myself.apk "$APK"
           "$ANDROID_HOME/build-tools/$BT/apksigner" verify --print-certs ../out/finding-myself.apk | grep -i "SHA-1"
           rm -f "$RUNNER_TEMP/release.jks"
