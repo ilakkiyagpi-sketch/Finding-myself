@@ -74,12 +74,41 @@ export function promptOfTheDay(date: string): string {
   return ALL_PROMPTS[h % ALL_PROMPTS.length];
 }
 
+// ~80 feeling words (emotional granularity: naming a feeling precisely helps regulate it).
 export const EMOTIONS: Record<string, string[]> = {
-  'pleasant-high': ['joyful', 'proud', 'hopeful', 'playful', 'inspired', 'excited', 'confident'],
-  'pleasant-low': ['calm', 'content', 'grateful', 'tender', 'relieved', 'peaceful', 'cosy'],
-  'unpleasant-high': ['anxious', 'overwhelmed', 'irritated', 'angry', 'restless', 'frustrated', 'guilty'],
-  'unpleasant-low': ['tired', 'sad', 'lonely', 'numb', 'drained', 'disconnected', 'invisible'],
+  'pleasant-high': ['joyful', 'proud', 'hopeful', 'playful', 'inspired', 'excited', 'confident', 'energised', 'grateful', 'loved', 'free', 'curious', 'creative', 'alive', 'amused', 'motivated', 'connected', 'capable', 'brave', 'light'],
+  'pleasant-low': ['calm', 'content', 'tender', 'relieved', 'peaceful', 'cosy', 'safe', 'rested', 'satisfied', 'gentle', 'patient', 'balanced', 'accepted', 'thoughtful', 'reflective', 'cared for', 'settled', 'quiet', 'warm', 'at ease'],
+  'unpleasant-high': ['anxious', 'overwhelmed', 'irritated', 'angry', 'restless', 'frustrated', 'guilty', 'stressed', 'rushed', 'resentful', 'jealous', 'worried', 'pressured', 'touched-out', 'on edge', 'panicky', 'scattered', 'hurt', 'ashamed', 'stretched thin'],
+  'unpleasant-low': ['tired', 'sad', 'lonely', 'numb', 'drained', 'disconnected', 'invisible', 'bored', 'hopeless', 'discouraged', 'empty', 'unseen', 'lost', 'disappointed', 'heavy', 'stuck', 'burnt out', 'homesick', 'unmotivated', 'fragile'],
 };
+
+/** "What's affecting me" tags for check-ins — the app learns which ones help. */
+export const AFFECT_TAGS: { key: string; label: string }[] = [
+  { key: 'sleep-good', label: '😴 Slept well' },
+  { key: 'sleep-poor', label: '🥱 Poor sleep' },
+  { key: 'baby', label: '👶 Baby' },
+  { key: 'kids', label: '🧒 Kids' },
+  { key: 'partner', label: '💞 Partner' },
+  { key: 'family', label: '👵 Family' },
+  { key: 'friends', label: '🤝 Friends' },
+  { key: 'work', label: '💼 Work' },
+  { key: 'study', label: '📚 Study' },
+  { key: 'housework', label: '🧺 Housework' },
+  { key: 'walk', label: '🚶 Walk / outdoors' },
+  { key: 'exercise', label: '🧘 Exercise / yoga' },
+  { key: 'metime', label: '🌱 Me-time' },
+  { key: 'hobby', label: '🎨 Hobby' },
+  { key: 'reading', label: '📖 Reading' },
+  { key: 'faith', label: '🙏 Prayer / faith' },
+  { key: 'health', label: '🤒 Health' },
+  { key: 'periods', label: '🩸 Cycle' },
+  { key: 'screens', label: '📱 Too much phone' },
+  { key: 'alone', label: '🫥 Alone a lot' },
+  { key: 'help', label: '🫶 Got help' },
+  { key: 'money', label: '💰 Money' },
+];
+
+export const tagLabel = (k: string) => AFFECT_TAGS.find((t) => t.key === k)?.label ?? k;
 
 export const QUADRANTS = [
   { key: 'pleasant-high', label: 'Good & energised', emoji: '🌞' },

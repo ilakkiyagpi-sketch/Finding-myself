@@ -1,4 +1,5 @@
-import { DIMENSIONS, SEASONS, type AppData, type GraphSnapshot } from './types';
+import { DIMENSIONS, SEASONS, type AppData, type CheckIn, type GraphSnapshot } from './types';
+import { tagLabel } from './prompts';
 import { daysAgoStr, todayStr } from './dates';
 
 export interface Piece {
@@ -89,4 +90,82 @@ export function homeInsight(d: AppData): string {
   if (!options.length) return 'Small, honest steps. You were never lost — just rearranged.';
   const idx = new Date().getDate() % options.length;
   return options[idx];
+}
+
+// ---------- "What helps me" (computed on the phone, from check-ins) ----------
+export interface HelpInsight {
+  key: string;
+  label: string;
+  withAvg: number;
+  withoutAvg: number;
+  days: number;
+  text: string;
+}
+
+const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+
+/** Tags linked with feeling more (or less) like herself. Needs a few days of data on both sides. */
+export function whatHelps(d: AppData, minDays = 3): HelpInsight[] {
+  const cs = d.checkIns;
+  const keys = [...new Set(cs.flatMap((c) => c.tags ?? []))];
+  const out: HelpInsight[] = [];
+  for (const k of keys) {
+    const withK = cs.filter((c) => c.tags?.includes(k)).map((c) => c.likeMyself);
+    const without = cs.filter((c) => !c.tags?.includes(k)).map((c) => c.likeMyself);
+    if (withK.length < minDays || without.length < minDays) continue;
+    const a = avg(withK);
+    const b = avg(without);
+    if (Math.abs(a - b) < 1) continue;
+    const label = tagLabel(k);
+    out.push({
+      key: k,
+      label,
+      withAvg: a,
+      withoutAvg: b,
+      days: withK.length,
+      text:
+        a > b
+          ? `On days with ${label}, you felt more like yourself (${a.toFixed(1)} vs ${b.toFixed(1)}).`
+          : `Days with ${label} tend to be harder (${a.toFixed(1)} vs ${b.toFixed(1)}). Worth noticing, not blaming.`,
+    });
+  }
+  // sleep hours
+  const slept = cs.filter((c) => typeof c.sleepHours === 'number') as (CheckIn & { sleepHours: number })[];
+  const low = slept.filter((c) => c.sleepHours < 5).map((c) => c.likeMyself);
+  const ok = slept.filter((c) => c.sleepHours >= 6).map((c) => c.likeMyself);
+  if (low.length >= minDays && ok.length >= minDays && avg(ok) - avg(low) >= 1) {
+    out.push({ key: 'sleep-hours', label: '😴 Sleep', withAvg: avg(ok), withoutAvg: avg(low), days: ok.length, text: `After 6+ hours of sleep you feel more like yourself (${avg(ok).toFixed(1)} vs ${avg(low).toFixed(1)} after under 5). Rest is not a luxury.` });
+  }
+  return out.sort((x, y) => Math.abs(y.withAvg - y.withoutAvg) - Math.abs(x.withAvg - x.withoutAvg));
+}
+
+// ---------- "On this day" ----------
+export interface Memory {
+  when: string; // label, e.g. "1 year ago"
+  date: string;
+  text: string;
+  kind: 'journal' | 'checkin';
+}
+
+export function onThisDay(d: AppData, today: string): Memory[] {
+  const md = today.slice(5);
+  const y = Number(today.slice(0, 4));
+  const out: Memory[] = [];
+  for (const j of d.journal) {
+    const date = j.createdAt.slice(0, 10);
+    const jy = Number(date.slice(0, 4));
+    if (date.slice(5) === md && jy < y) out.push({ when: `${y - jy} year${y - jy > 1 ? 's' : ''} ago`, date, text: j.text, kind: 'journal' });
+  }
+  for (const c of d.checkIns) {
+    const cy = Number(c.date.slice(0, 4));
+    if (c.date.slice(5) === md && cy < y && c.mattered) out.push({ when: `${y - cy} year${y - cy > 1 ? 's' : ''} ago`, date: c.date, text: `You felt ${c.emotion}. What mattered: ${c.mattered}`, kind: 'checkin' });
+  }
+  // one month ago, if nothing from past years
+  if (!out.length) {
+    const m = new Date(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 2, Number(today.slice(8, 10)));
+    const mStr = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-${String(m.getDate()).padStart(2, '0')}`;
+    const j = d.journal.find((x) => x.createdAt.slice(0, 10) === mStr);
+    if (j) out.push({ when: 'A month ago today', date: mStr, text: j.text, kind: 'journal' });
+  }
+  return out;
 }

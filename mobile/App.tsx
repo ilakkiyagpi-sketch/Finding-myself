@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AppState, BackHandler, Pressable, Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +16,8 @@ import { checkForUpdate, shouldAutoCheck } from './src/lib/updates';
 import Plan, { type PlanView } from './src/screens/Plan';
 import { onReminderTap, setupNotifications, syncNotifications } from './src/lib/notify';
 import { todayStr } from './src/lib/dates';
+import { LockGate } from './src/components/Lock';
+import { maybeAutoBackup } from './src/lib/backup';
 
 export type Tab = 'home' | 'plan' | 'checkin' | 'journal' | 'self' | 'rhythm' | 'more';
 
@@ -71,10 +73,28 @@ function useReminders() {
   }, [data.events, data.dayPlans, data.settings, data.profile?.name, onboarded]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
+/** Weekly silent Google Drive backup when the app comes to the front (if turned on). */
+function useAutoBackup() {
+  const { data, update } = useStore();
+  const latest = useRef(data);
+  latest.current = data;
+  useEffect(() => {
+    const run = () =>
+      maybeAutoBackup(latest.current).then((at) => at && update((d) => ({ ...d, settings: { ...d.settings, lastBackupAt: at } })));
+    const id = setTimeout(run, 5000);
+    const sub = AppState.addEventListener('change', (st) => st === 'active' && run());
+    return () => {
+      clearTimeout(id);
+      sub.remove();
+    };
+  }, [update]);
+}
+
 function Shell() {
   const { data } = useStore();
   useUpdateCheck();
   useReminders();
+  useAutoBackup();
   const t = useTheme();
   const [tab, setTab] = useState<Tab>('home');
   const [planView, setPlanView] = useState<PlanView>('today');
@@ -172,7 +192,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <DataProvider>
-        <Shell />
+        <LockGate>
+          <Shell />
+        </LockGate>
       </DataProvider>
     </SafeAreaProvider>
   );

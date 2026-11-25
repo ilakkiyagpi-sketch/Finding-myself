@@ -34,7 +34,9 @@
           "icon": "./assets/notification-icon.png",
           "color": "#7A5C8E"
         }
-      ]
+      ],
+      "expo-audio",
+      "expo-secure-store"
     ],
     "scheme": "findingmyself",
     "extra": {

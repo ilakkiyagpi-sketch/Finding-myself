@@ -1,6 +1,6 @@
 import { Pressable, View } from 'react-native';
 import { useStore, todayStr } from '../lib/store';
-import { habitDaysInLast, homeInsight, isHeavySeason, isToughDay, latestSnapshot } from '../lib/insights';
+import { habitDaysInLast, homeInsight, isHeavySeason, isToughDay, latestSnapshot, onThisDay } from '../lib/insights';
 import { promptOfTheDay } from '../lib/prompts';
 import { Btn, Card, Chip, H, LinkBtn, Row, Screen, T } from '../components/ui';
 import { useTheme } from '../components/theme';
@@ -136,6 +136,8 @@ export default function Home({ go, openPlan }: { go: (t: Tab) => void; openPlan:
         <Btn title="Write about it" onPress={() => go('journal')} />
       </Card>
 
+      <OnThisDayCard />
+
       {snap && (
         <Card>
           <Row style={{ justifyContent: 'space-between' }}>
@@ -197,6 +199,21 @@ function TodayPlanCard({ openPlan }: { openPlan: (v: PlanView, date?: string) =>
           {plan.evening && <T small muted style={{ marginTop: 6 }}>🌙 Evening check done. Rest well.</T>}
         </>
       )}
+    </Card>
+  );
+}
+
+function OnThisDayCard() {
+  const { data } = useStore();
+  const mem = onThisDay(data, todayStr());
+  if (!mem.length) return null;
+  const m = mem[0];
+  return (
+    <Card>
+      <H level={3}>🕰️ On this day</H>
+      <T small muted>{m.when}</T>
+      <T italic style={{ marginTop: 4 }}>“{m.text.length > 220 ? m.text.slice(0, 220) + '…' : m.text}”</T>
+      {mem.length > 1 && <T small muted style={{ marginTop: 6 }}>+ {mem.length - 1} more memor{mem.length > 2 ? 'ies' : 'y'} from this date</T>}
     </Card>
   );
 }

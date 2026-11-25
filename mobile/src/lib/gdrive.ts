@@ -29,22 +29,24 @@ export function friendlyGoogleError(e: unknown): string {
 }
 
 /** Returns the signed-in email and a fresh access token with Drive app-data access. */
-async function getAccess(): Promise<{ token: string; email: string }> {
+async function getAccess(interactive = true): Promise<{ token: string; email: string }> {
   if (Platform.OS === 'web') throw new Error('Google backup works in the installed Android app.');
   configure();
-  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+  await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: interactive });
 
   let user = GoogleSignin.getCurrentUser();
   if (!user) {
     const silent = GoogleSignin.hasPreviousSignIn() ? await GoogleSignin.signInSilently() : null;
     if (silent && silent.type === 'success') user = silent.data;
   }
+  if (!user && !interactive) throw new Error('Not signed in to Google.');
   if (!user) {
     const res = await GoogleSignin.signIn();
     if (!isSuccessResponse(res)) throw new Error('Google sign-in was cancelled.');
     user = res.data;
   }
   if (!user.scopes?.includes(SCOPE)) {
+    if (!interactive) throw new Error('Drive permission missing.');
     const res = await GoogleSignin.addScopes({ scopes: [SCOPE] });
     if (!res || !isSuccessResponse(res)) throw new Error('Drive permission was not granted, so backup can’t be saved.');
     user = res.data;
@@ -85,8 +87,8 @@ async function findBackup(token: string): Promise<{ id: string; modifiedTime: st
   return json.files?.[0] ?? null;
 }
 
-export async function backupToDrive(content: string): Promise<{ at: string; email: string }> {
-  const { token, email } = await getAccess();
+export async function backupToDrive(content: string, interactive = true): Promise<{ at: string; email: string }> {
+  const { token, email } = await getAccess(interactive);
   const existing = await findBackup(token);
   const boundary = 'fm' + Math.random().toString(36).slice(2);
   const meta = existing ? { name: FILE_NAME } : { name: FILE_NAME, parents: ['appDataFolder'] };

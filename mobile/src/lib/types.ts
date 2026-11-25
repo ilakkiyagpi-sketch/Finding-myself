@@ -55,6 +55,7 @@ export interface CheckIn {
   sleepHours?: number;
   likeMyself: number; // 0-10: "how much like yourself did you feel today?"
   mattered: string;
+  tags?: string[]; // what's affecting me: 'sleep', 'baby', 'walk', ...
   createdAt: string;
 }
 
@@ -63,6 +64,8 @@ export interface JournalEntry {
   createdAt: string;
   prompt?: string;
   text: string;
+  photos?: string[]; // file names in the app's media folder
+  audio?: { name: string; seconds: number }[];
 }
 
 export type HabitLevel = 'minimum' | 'normal' | 'stretch';
@@ -145,6 +148,8 @@ export interface Settings {
   remindEvening: boolean;
   eventReminderTime: string; // "HH:MM" for "on the day" / "days before" reminders of all-day events
   planSkippedOn?: string; // YYYY-MM-DD: "not today" tapped on the morning plan
+  appLock?: boolean; // fingerprint / device PIN when opening the app
+  autoBackup?: boolean; // weekly Google Drive backup when the app opens
 }
 
 export interface AppData {

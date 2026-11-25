@@ -5,7 +5,10 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { useStore, normalise } from '../lib/store';
 import { backupToDrive, friendlyGoogleError, restoreFromDrive, signedInEmail, signOutGoogle } from '../lib/gdrive';
-import { decryptText, encryptText, isEncrypted } from '../lib/crypto';
+import { decryptText, isEncrypted } from '../lib/crypto';
+import { buildBackup, rememberedPassphrase, setRememberedPassphrase } from '../lib/backup';
+import { importMedia } from '../lib/media';
+import { unlock } from '../components/Lock';
 import { SEASONS, type AppData, type Country } from '../lib/types';
 import { Btn, Card, Choice, Field, H, Helplines, LinkBtn, Row, Screen, T, confirmAsync } from '../components/ui';
 import { checkForUpdate, installedBuild, startUpdate } from '../lib/updates';
@@ -28,10 +31,11 @@ export function useBackup() {
     signedInEmail().then(setEmail).catch(() => {});
   }, []);
 
-  const serialise = async () => {
-    const json = JSON.stringify(data);
-    return passphrase ? JSON.stringify(await encryptText(json, passphrase)) : json;
-  };
+  useEffect(() => {
+    rememberedPassphrase().then((p) => p && setPassphrase((cur) => cur || p));
+  }, []);
+
+  const serialise = () => buildBackup(data, passphrase);
 
   const restoreFrom = async (raw: string): Promise<boolean> => {
     let parsed: unknown = JSON.parse(raw);
@@ -45,7 +49,9 @@ export function useBackup() {
     }
     if (!isAppData(parsed)) throw new Error('This is not a Finding Myself backup.');
     if (!(await confirmAsync('Restore backup?', 'This replaces everything currently on this phone with the backup.', 'Restore', true))) return false;
-    replaceAll(normalise(parsed));
+    const { media, ...rest } = parsed as AppData & { media?: Record<string, string> };
+    await importMedia(media);
+    replaceAll(normalise(rest));
     return true;
   };
 
@@ -107,7 +113,18 @@ export function useBackup() {
       setStatus('Signed out of Google.');
     });
 
-  return { busy, status, passphrase, setPassphrase, email, driveBackup, driveRestore, exportFile, importFile, signOut };
+  const toggleAuto = () =>
+    run('', async () => {
+      const on = !data.settings.autoBackup;
+      if (on) {
+        if (!data.settings.lastBackupAt) throw new Error('Do one “Back up now” first, so Google is connected.');
+        await setRememberedPassphrase(passphrase || null);
+      } else await setRememberedPassphrase(null);
+      update((d) => ({ ...d, settings: { ...d.settings, autoBackup: on } }));
+      setStatus(on ? `✅ Weekly automatic backup is on${passphrase ? ' (with your passphrase, kept in the phone’s secure keystore)' : ''}.` : 'Automatic backup is off.');
+    });
+
+  return { busy, status, passphrase, setPassphrase, email, driveBackup, driveRestore, exportFile, importFile, signOut, toggleAuto };
 }
 
 export function BackupCard({ firstRun }: { firstRun?: boolean }) {
@@ -142,6 +159,15 @@ export function BackupCard({ firstRun }: { firstRun?: boolean }) {
         {!firstRun && <Btn primary title="Back up now" disabled={b.busy} onPress={b.driveBackup} style={{ flex: 1 }} />}
         <Btn primary={firstRun} title={firstRun ? 'Restore from Google Drive' : 'Restore'} disabled={b.busy} onPress={b.driveRestore} style={{ flex: 1 }} />
       </Row>
+      {!firstRun && (
+        <View style={{ marginTop: 10 }}>
+          <Choice
+            label={data.settings.autoBackup ? '🔁 Automatic weekly backup: on' : '🔁 Back up automatically every week'}
+            on={!!data.settings.autoBackup}
+            onPress={b.toggleAuto}
+          />
+        </View>
+      )}
       {!!b.status && <T bold style={{ marginTop: 10 }}>{b.status}</T>}
       <Row style={{ justifyContent: 'space-between' }}>
         <LinkBtn title={offline ? 'Hide offline options' : 'Offline options'} onPress={() => setOffline(!offline)} />
@@ -191,6 +217,29 @@ function UpdateCard() {
       </T>
       <Btn title="Check for updates" disabled={busy} onPress={check} />
       {!!status && <T bold style={{ marginTop: 10 }}>{status}</T>}
+    </Card>
+  );
+}
+
+function LockCard() {
+  const { data, update } = useStore();
+  const [msg, setMsg] = useState('');
+  if (Platform.OS === 'web') return null;
+  const toggle = async () => {
+    const on = !data.settings.appLock;
+    if (on) {
+      const r = await unlock('Confirm to turn on the app lock');
+      if (!r.ok) return setMsg(r.reason);
+    }
+    update((d) => ({ ...d, settings: { ...d.settings, appLock: on } }));
+    setMsg(on ? '✅ The app will ask for your fingerprint or screen lock when it opens.' : 'App lock is off.');
+  };
+  return (
+    <Card>
+      <H level={3}>🔐 App lock</H>
+      <T small muted style={{ marginBottom: 8 }}>Keeps your journal private if someone else picks up your phone.</T>
+      <Choice label={data.settings.appLock ? 'Fingerprint / screen lock: on' : 'Lock with fingerprint / screen lock'} on={!!data.settings.appLock} onPress={toggle} />
+      {!!msg && <T bold style={{ marginTop: 8 }}>{msg}</T>}
     </Card>
   );
 }
@@ -275,6 +324,8 @@ export default function More({ go }: { go: (t: Tab) => void }) {
         <T small muted>This app is a companion, not therapy. Please reach out — you deserve support.</T>
         <Helplines />
       </Card>
+
+      <LockCard />
 
       <Card>
         <H level={3}>🔒 Your data</H>
