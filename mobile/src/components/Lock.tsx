@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AppState, Platform, View } from 'react-native';
+import { AppState, Image, Platform, View } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useStore } from '../lib/store';
 import { Btn, H, T } from './ui';
@@ -52,7 +52,7 @@ export function LockGate({ children }: { children: ReactNode }) {
       {children}
       {enabled && locked && (
         <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', padding: 24, backgroundColor: t.bg }}>
-          <T size={56}>🔐</T>
+          <Image source={require('../../assets/logo-mark.png')} style={{ width: 120, height: 120, borderRadius: 30, marginBottom: 12 }} accessibilityLabel="Finding Myself logo" />
           <H>Finding Myself</H>
           <T muted style={{ textAlign: 'center', marginBottom: 20 }}>Your space is locked.</T>
           <Btn primary title="Unlock" onPress={tryUnlock} />

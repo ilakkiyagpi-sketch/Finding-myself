@@ -23,6 +23,12 @@ import type { Section } from './src/screens/Self';
 import { refreshWidget } from './src/widget/handler';
 import Wellbeing from './src/screens/Wellbeing';
 import { setLang, tr } from './src/lib/i18n';
+import * as SplashScreen from 'expo-splash-screen';
+import { useFonts, Nunito_400Regular, Nunito_400Regular_Italic, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
+import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
+import { ff } from './src/components/ui';
+
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export type Tab = 'home' | 'plan' | 'checkin' | 'journal' | 'self' | 'rhythm' | 'more' | 'review' | 'wellbeing';
 
@@ -217,7 +223,10 @@ function Shell() {
           {tab === 'more' && <More go={setTab} />}
         </View>
         {tab !== 'checkin' && tab !== 'review' && tab !== 'wellbeing' && !(tab === 'plan' && planView === 'evening') && (
-          <View style={{ flexDirection: 'row', backgroundColor: t.surface, borderTopWidth: 1, borderTopColor: t.line }} accessibilityRole="tablist">
+          <View
+            style={{ flexDirection: 'row', backgroundColor: t.surface, borderTopWidth: 1, borderTopColor: t.line, paddingTop: 6, paddingBottom: 4, elevation: 12, shadowColor: t.shadow, shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: -2 } }}
+            accessibilityRole="tablist"
+          >
             {NAV.map((n) => {
               const on = tab === n.key;
               return (
@@ -227,10 +236,12 @@ function Shell() {
                   accessibilityRole="tab"
                   accessibilityState={{ selected: on }}
                   accessibilityLabel={tr(n.label)}
-                  style={{ flex: 1, minHeight: 62, alignItems: 'center', justifyContent: 'center' }}
+                  style={{ flex: 1, minHeight: 58, alignItems: 'center', justifyContent: 'center', gap: 2 }}
                 >
-                  <Text style={{ fontSize: 22 }}>{n.icon}</Text>
-                  <Text style={{ fontSize: 12, color: on ? t.primary : t.muted, fontWeight: on ? '700' : '400' }}>{tr(n.label)}</Text>
+                  <View style={{ paddingHorizontal: 16, paddingVertical: 3, borderRadius: 999, backgroundColor: on ? t.primarySoft : 'transparent' }}>
+                    <Text style={{ fontSize: 20, opacity: on ? 1 : 0.7 }}>{n.icon}</Text>
+                  </View>
+                  <Text style={[{ fontSize: 12, color: on ? t.primary : t.muted }, ff(on ? 'heavy' : 'semi')]}>{tr(n.label)}</Text>
                 </Pressable>
               );
             })}
@@ -249,6 +260,19 @@ function Shell() {
 }
 
 export default function App() {
+  const [fontsLoaded, fontError] = useFonts({
+    Nunito_400Regular,
+    Nunito_400Regular_Italic,
+    Nunito_600SemiBold,
+    Nunito_700Bold,
+    Nunito_800ExtraBold,
+    Fraunces_600SemiBold,
+  });
+  const ready = fontsLoaded || !!fontError;
+  useEffect(() => {
+    if (ready) SplashScreen.hideAsync().catch(() => {});
+  }, [ready]);
+  if (!ready) return null;
   return (
     <SafeAreaProvider>
       <DataProvider>

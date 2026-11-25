@@ -317,6 +317,8 @@ const TA: Record<string, string> = {
   'Wellbeing check': 'நலச் சோதனை',
   'Thank you for checking in 💛': 'பதிவு செய்ததற்கு நன்றி 💛',
   'Language / மொழி': 'மொழி / Language',
+  'For you': 'உங்களுக்காக',
+  Growing: 'வளர்ச்சி',
   THEN: 'அப்போது',
   NOW: 'இப்போது',
   NEXT: 'அடுத்து',

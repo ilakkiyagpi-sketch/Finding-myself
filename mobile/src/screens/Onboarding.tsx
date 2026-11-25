@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View } from 'react-native';
+import { Image, View } from 'react-native';
 import { useStore, uid } from '../lib/store';
 import { DIMENSIONS, SEASONS, blankScores, type Role, type Scores, type Season } from '../lib/types';
 import { Btn, Chip, Choice, Field, H, Radar, RadarLegend, Row, Screen, Segmented, Slider, T } from '../components/ui';
@@ -82,9 +82,11 @@ export default function Onboarding({ onRestore }: { onRestore: () => void }) {
         <Chip label="English" on={lang === 'en'} onPress={() => setLanguage('en')} />
         <Chip label="தமிழ்" on={lang === 'ta'} onPress={() => setLanguage('ta')} />
       </Row>
-      <T size={56}>🌿</T>
-      <H>Finding Myself</H>
-      <T size={18} style={{ marginBottom: 14 }}>You were never lost. Life rearranged you. Let’s gently find the pieces — and carry them forward, your way.</T>
+      <View style={{ alignItems: 'center', marginVertical: 12 }}>
+        <Image source={require('../../assets/logo-mark.png')} style={{ width: 148, height: 148, borderRadius: 36 }} accessibilityLabel="Finding Myself logo: a mother holding her child, reaching for a missing puzzle piece" />
+      </View>
+      <H style={{ textAlign: 'center' }}>Finding Myself</H>
+      <T size={18} style={{ marginBottom: 18, textAlign: 'center' }}>You were never lost. Life rearranged you. Let’s gently find the pieces — and carry them forward, your way.</T>
       <T style={{ marginBottom: 8 }}>🪞 A mirror and a map — not therapy, not a test.</T>
       <T style={{ marginBottom: 8 }}>🔒 Everything stays on this phone. Backup goes only to your own Google Drive, if you choose.</T>
       <T style={{ marginBottom: 18 }}>🌱 No guilt, no streaks that punish, no comparing.</T>

@@ -5,8 +5,8 @@ import type { AppData } from '../lib/types';
 
 type Hex = `#${string}`;
 const C = {
-  light: { bg: '#FBF7F2' as Hex, text: '#2E2733' as Hex, muted: '#7A7180' as Hex, chip: '#EFE6F4' as Hex, accent: '#7A5C8E' as Hex },
-  dark: { bg: '#27222C' as Hex, text: '#F1EBF3' as Hex, muted: '#A99FB0' as Hex, chip: '#3A3047' as Hex, accent: '#B89BD0' as Hex },
+  light: { bg: '#FAF6F2' as Hex, text: '#2A1F33' as Hex, muted: '#7B6F86' as Hex, chip: '#F2EAF8' as Hex, accent: '#5E3B7E' as Hex },
+  dark: { bg: '#211A29' as Hex, text: '#F3EEF6' as Hex, muted: '#A89DB3' as Hex, chip: '#2E2440' as Hex, accent: '#C9A9E8' as Hex },
 };
 
 function Button({ label, uri, c }: { label: string; uri: string; c: (typeof C)['light'] }) {

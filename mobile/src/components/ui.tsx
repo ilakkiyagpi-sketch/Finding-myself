@@ -17,11 +17,17 @@ import {
 } from 'react-native';
 import RNSlider from '@react-native-community/slider';
 import Svg, { G, Line, Path, Polygon, Text as SvgText } from 'react-native-svg';
-import { useTheme } from './theme';
+import { FONTS, useTheme } from './theme';
 import { DIMENSIONS, type Scores } from '../lib/types';
 import { HELPLINES } from '../lib/safety';
 import { useStore } from '../lib/store';
-import { tr } from '../lib/i18n';
+import { getLang, tr } from '../lib/i18n';
+
+/** Font for a weight. Tamil uses the phone's Tamil font (custom Latin fonts lack Tamil letters). */
+export function ff(w: 'body' | 'semi' | 'bold' | 'heavy' | 'title' | 'italic' = 'body'): TextStyle {
+  if (getLang() === 'ta') return w === 'italic' ? { fontStyle: 'italic' } : { fontWeight: w === 'body' ? '400' : w === 'semi' ? '600' : '700' };
+  return { fontFamily: FONTS[w] };
+}
 
 // ---------- Text ----------
 export function T({
@@ -46,8 +52,7 @@ export function T({
     <Text
       style={[
         { color: muted ? t.muted : t.text, fontSize: size ?? (small ? 13.5 : 16), lineHeight: (size ?? (small ? 13.5 : 16)) * 1.45 },
-        bold && { fontWeight: '700' },
-        italic && { fontStyle: 'italic' },
+        ff(bold ? 'bold' : italic ? 'italic' : 'body'),
         style,
       ]}
     >
@@ -56,12 +61,22 @@ export function T({
   );
 }
 
-export function H({ children, level = 1 }: { children: ReactNode; level?: 1 | 2 | 3 }) {
-  const size = level === 1 ? 28 : level === 2 ? 21 : 17;
+export function H({ children, level = 1, style }: { children: ReactNode; level?: 1 | 2 | 3; style?: StyleProp<TextStyle> }) {
+  const size = level === 1 ? 30 : level === 2 ? 22 : 17.5;
   return (
-    <T bold size={size} style={{ marginBottom: 6, lineHeight: size * 1.25 }}>
+    <T size={size} style={[{ marginBottom: 6, lineHeight: size * 1.25, letterSpacing: level === 3 ? 0.1 : -0.3 }, ff(level === 3 ? 'heavy' : 'title'), style]}>
       {children}
     </T>
+  );
+}
+
+/** Small uppercase label that groups cards into sections. */
+export function SectionLabel({ children }: { children: string }) {
+  const t = useTheme();
+  return (
+    <Text style={[{ color: t.muted, fontSize: 12.5, letterSpacing: 1.4, marginTop: 10, marginBottom: 8, marginLeft: 4 }, ff('heavy')]}>
+      {tr(children).toUpperCase()}
+    </Text>
   );
 }
 
@@ -70,7 +85,7 @@ export function Screen({ children, footer }: { children: ReactNode; footer?: Rea
   const t = useTheme();
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
         {children}
       </ScrollView>
       {footer && <View style={[s.footer, { backgroundColor: t.bg, borderTopColor: t.line }]}>{footer}</View>}
@@ -80,7 +95,7 @@ export function Screen({ children, footer }: { children: ReactNode; footer?: Rea
 
 export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const t = useTheme();
-  return <View style={[s.card, { backgroundColor: t.surface, borderColor: t.line }, style]}>{children}</View>;
+  return <View style={[s.card, { backgroundColor: t.surface, borderColor: t.line, shadowColor: t.shadow }, style]}>{children}</View>;
 }
 
 export function Row({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -118,13 +133,14 @@ export function Btn({
       onPress={onPress}
       style={({ pressed }) => [
         s.btn,
-        { backgroundColor: primary ? t.primary : t.surface, borderColor: primary ? t.primary : t.line },
+        { backgroundColor: primary ? t.primary : t.surface, borderColor: primary ? t.primary : t.line, shadowColor: t.shadow },
+        primary && { elevation: 3, shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 3 } },
         wide && { alignSelf: 'stretch' },
         (disabled || pressed) && { opacity: disabled ? 0.45 : 0.8 },
         style,
       ]}
     >
-      <Text style={{ color: primary ? t.primaryInk : danger ? t.danger : t.text, fontWeight: '700', fontSize: 16, textAlign: 'center' }}>{tr(title)}</Text>
+      <Text style={[{ color: primary ? t.primaryInk : danger ? t.danger : t.text, fontSize: 16, textAlign: 'center' }, ff('bold')]}>{tr(title)}</Text>
     </Pressable>
   );
 }
@@ -133,7 +149,7 @@ export function LinkBtn({ title, onPress, danger }: { title: string; onPress: ()
   const t = useTheme();
   return (
     <Pressable accessibilityRole="button" onPress={onPress} hitSlop={10} style={{ paddingVertical: 8, minHeight: 40, justifyContent: 'center' }}>
-      <Text style={{ color: danger ? t.danger : t.primary, fontWeight: '700', fontSize: 15.5 }}>{tr(title)}</Text>
+      <Text style={[{ color: danger ? t.danger : t.primary, fontSize: 15.5 }, ff('bold')]}>{tr(title)}</Text>
     </Pressable>
   );
 }
@@ -145,9 +161,9 @@ export function Chip({ label, on, onPress }: { label: string; on?: boolean; onPr
       accessibilityRole="button"
       accessibilityState={{ selected: !!on }}
       onPress={onPress}
-      style={[s.chip, { borderColor: on ? t.primary : t.line, backgroundColor: on ? t.primarySoft : t.bg }]}
+      style={[s.chip, { borderColor: on ? t.primary : t.line, backgroundColor: on ? t.primarySoft : t.surface }]}
     >
-      <Text style={{ color: t.text, fontWeight: on ? '700' : '400', fontSize: 15 }}>{tr(label)}</Text>
+      <Text style={[{ color: on ? t.primary : t.text, fontSize: 15 }, ff(on ? 'bold' : 'semi')]}>{tr(label)}</Text>
     </Pressable>
   );
 }
@@ -172,7 +188,7 @@ export function Choice({ label, on, onPress, disabled, style }: { label: string;
       onPress={onPress}
       style={[s.choice, { borderColor: on ? t.primary : t.line, backgroundColor: on ? t.primarySoft : t.surface }, style]}
     >
-      <Text style={{ color: t.text, fontWeight: on ? '700' : '400', fontSize: 16 }}>{tr(label)}</Text>
+      <Text style={[{ color: on ? t.primary : t.text, fontSize: 16 }, ff(on ? 'bold' : 'semi')]}>{tr(label)}</Text>
     </Pressable>
   );
 }
@@ -180,16 +196,16 @@ export function Choice({ label, on, onPress, disabled, style }: { label: string;
 export function Segmented<K extends string>({ options, value, onChange }: { options: { key: K; label: string }[]; value: K; onChange: (k: K) => void }) {
   const t = useTheme();
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[s.seg, { backgroundColor: t.primarySoft }]}>
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: 6 }} contentContainerStyle={[s.seg, { backgroundColor: t.primarySoft }]}>
       {options.map((o) => (
         <Pressable
           key={o.key}
           onPress={() => onChange(o.key)}
-          style={[s.segBtn, value === o.key && { backgroundColor: t.surface, elevation: 1 }]}
+          style={[s.segBtn, value === o.key && { backgroundColor: t.surface, elevation: 2, shadowColor: t.shadow, shadowOpacity: 0.12, shadowRadius: 4, shadowOffset: { width: 0, height: 1 } }]}
           accessibilityRole="tab"
           accessibilityState={{ selected: value === o.key }}
         >
-          <Text style={{ color: t.text, fontWeight: '700' }}>{tr(o.label)}</Text>
+          <Text style={[{ color: value === o.key ? t.primary : t.muted, fontSize: 15 }, ff('bold')]}>{tr(o.label)}</Text>
         </Pressable>
       ))}
     </ScrollView>
@@ -208,6 +224,7 @@ export function Field({ label, hint, ...props }: TextInputProps & { label?: stri
         style={[
           s.input,
           { color: t.text, borderColor: t.line, backgroundColor: t.bg },
+          ff('body'),
           props.multiline && { minHeight: 96, textAlignVertical: 'top' },
           props.style,
         ]}
@@ -397,14 +414,14 @@ export function confirmAsync(title: string, message: string, ok = 'OK', destruct
 }
 
 export const s = StyleSheet.create({
-  card: { borderWidth: 1, borderRadius: 18, padding: 16, marginBottom: 14 },
-  btn: { minHeight: 48, paddingHorizontal: 18, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  chip: { minHeight: 42, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1, justifyContent: 'center' },
-  choice: { minHeight: 54, paddingHorizontal: 14, paddingVertical: 12, borderRadius: 14, borderWidth: 1, justifyContent: 'center' },
+  card: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 22, padding: 18, marginBottom: 14, elevation: 2, shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } },
+  btn: { minHeight: 52, paddingHorizontal: 20, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  chip: { minHeight: 42, paddingHorizontal: 15, paddingVertical: 8, borderRadius: 999, borderWidth: 1, justifyContent: 'center' },
+  choice: { minHeight: 56, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 16, borderWidth: 1, justifyContent: 'center' },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginVertical: 8 },
-  seg: { flexDirection: 'row', gap: 6, padding: 4, borderRadius: 14, marginVertical: 8 },
-  segBtn: { minHeight: 42, paddingHorizontal: 14, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  input: { minHeight: 48, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16 },
+  seg: { flexDirection: 'row', gap: 4, padding: 4, borderRadius: 16, marginVertical: 8 },
+  segBtn: { minHeight: 44, paddingHorizontal: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  input: { minHeight: 50, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, fontSize: 16 },
   footer: { flexDirection: 'row', gap: 10, padding: 12, borderTopWidth: 1, justifyContent: 'flex-end' },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   sheet: { borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 20, maxHeight: '90%' },

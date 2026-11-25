@@ -1,8 +1,10 @@
-import { Pressable, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useStore, todayStr } from '../lib/store';
 import { habitDaysInLast, homeInsight, isHeavySeason, isToughDay, latestSnapshot, onThisDay } from '../lib/insights';
 import { promptOfTheDay } from '../lib/prompts';
-import { Btn, Card, Chip, H, LinkBtn, Row, Screen, T } from '../components/ui';
+import { Btn, Card, Chip, H, LinkBtn, Row, Screen, SectionLabel, T, ff } from '../components/ui';
+import { prettyDate } from '../lib/planner';
 import { useTheme } from '../components/theme';
 import type { HabitLevel } from '../lib/types';
 import type { Tab } from '../../App';
@@ -57,25 +59,34 @@ export default function Home({ go, openPlan, openReview, openLetters }: { go: (t
           </Row>
         </Card>
       )}
-      <T muted>{`${tr(greet)},`}</T>
-      <H>{p.name || 'friend'} 🌿</H>
-
-      <Card style={{ backgroundColor: t.primarySoft }}>
-        <Row style={{ alignItems: 'flex-start', marginBottom: 10 }}>
+      <LinearGradient colors={[t.heroFrom, t.heroMid, t.heroTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 26, padding: 20, marginBottom: 18 }}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <View style={{ flex: 1 }}>
+            <T style={[{ color: t.heroText, opacity: 0.85 }, ff('semi')]}>{`${tr(greet)},`}</T>
+            <T size={30} style={[{ color: t.heroText, lineHeight: 36 }, ff('title')]}>{p.name || 'friend'}</T>
+            <T small style={{ color: t.heroText, opacity: 0.8 }}>{prettyDate(today)}</T>
+          </View>
+          <Image source={require('../../assets/logo-mark.png')} style={{ width: 64, height: 64, borderRadius: 16 }} accessibilityLabel="Finding Myself logo" />
+        </Row>
+        <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.25)', marginVertical: 14 }} />
+        <Row style={{ alignItems: 'flex-start' }}>
           {[
             ['THEN', p.wordsWas],
             ['NOW', p.wordsNow],
             ['NEXT', p.wordsWant],
           ].map(([label, words]) => (
             <View key={label as string} style={{ flex: 1 }}>
-              <T small muted>{tr(label as string)}</T>
-              <T bold>{(words as string[]).join(' · ') || '—'}</T>
+              <T small style={[{ color: t.heroText, opacity: 0.75, letterSpacing: 1.2, fontSize: 11.5 }, ff('heavy')]}>{tr(label as string)}</T>
+              <T style={[{ color: t.heroText }, ff('bold')]}>{(words as string[]).join('\n') || '—'}</T>
             </View>
           ))}
         </Row>
-        <T>{homeInsight(data)}</T>
-      </Card>
+        <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 16, padding: 12, marginTop: 14 }}>
+          <T style={{ color: t.heroText }}>{homeInsight(data)}</T>
+        </View>
+      </LinearGradient>
 
+      <SectionLabel>Today</SectionLabel>
       <TodayPlanCard openPlan={openPlan} />
       <ReviewCard openReview={openReview} />
       <LettersReadyCard openLetters={openLetters} />
@@ -88,6 +99,7 @@ export default function Home({ go, openPlan, openReview, openLetters }: { go: (t
           borderWidth: 1,
           borderStyle: tough ? 'solid' : 'dashed',
           borderColor: tough ? t.accent : t.line,
+          backgroundColor: tough ? t.accentSoft : 'transparent',
           borderRadius: 18,
           padding: 14,
           minHeight: 52,
@@ -140,15 +152,18 @@ export default function Home({ go, openPlan, openReview, openLetters }: { go: (t
         })}
       </Card>
 
+      <SectionLabel>For you</SectionLabel>
       <Card>
         <H level={3}>A question for today</H>
-        <View style={{ borderLeftWidth: 3, borderLeftColor: t.accent, paddingLeft: 12, marginVertical: 8 }}>
+        <View style={{ backgroundColor: t.accentSoft, borderRadius: 16, padding: 14, marginVertical: 8 }}>
           <T italic size={17}>{promptOfTheDay(today)}</T>
         </View>
         <Btn title="Write about it" onPress={() => go('journal')} />
       </Card>
 
       <OnThisDayCard />
+
+      <SectionLabel>Growing</SectionLabel>
       <Garden />
 
       {snap && (
