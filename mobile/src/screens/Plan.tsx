@@ -14,12 +14,18 @@ import {
   relativeDay,
   upcoming,
   upsertPlan,
+  usualItems,
   yearsSince,
 } from '../lib/planner';
+import { useDraft } from '../lib/drafts';
 import { Btn, Card, Chip, Choice, Field, H, LinkBtn, Row, Screen, Segmented, T, confirmAsync } from '../components/ui';
 import { MonthGrid, TimeField, to12h } from '../components/pickers';
 import { useTheme } from '../components/theme';
 import type { DayPlan, PlanItem, PlanStatus, PlannerEvent } from '../lib/types';
+import Dictate from '../components/Dictate';
+import { parseSpokenPlan } from '../lib/voicePlan';
+
+const byTime = (a: PlanItem, b: PlanItem) => (a.time ?? '99').localeCompare(b.time ?? '99');
 
 export type PlanView = 'today' | 'evening' | 'year';
 
@@ -102,20 +108,33 @@ function RolePicker({ value, onChange }: { value?: string; onChange: (r?: string
   );
 }
 
-function ItemAdder({ onAdd }: { onAdd: (i: PlanItem) => void }) {
+function ItemAdder({ onAdd }: { onAdd: (items: PlanItem[]) => void }) {
   const [text, setText] = useState('');
   const [time, setTime] = useState<string | undefined>();
   const [role, setRole] = useState<string | undefined>();
   const [more, setMore] = useState(false);
+  const [heard, setHeard] = useState('');
   const add = () => {
     if (!text.trim()) return;
-    onAdd({ id: uid(), text: text.trim(), time, role, status: 'open' });
+    onAdd([{ id: uid(), text: text.trim(), time, role, status: 'open' }]);
     setText('');
     setTime(undefined);
     setRole(undefined);
   };
+  const fromVoice = (spoken: string) => {
+    const items = parseSpokenPlan(spoken);
+    if (!items.length) return;
+    onAdd(items.map((i) => ({ id: uid(), text: i.text, time: i.time, status: 'open' as PlanStatus })));
+    setHeard(`Added ${items.length} from your voice: ${items.map((i) => (i.time ? `${i.text} (${to12h(i.time)})` : i.text)).join(' · ')}. Check the times, and tap ✕ on anything I misheard.`);
+  };
   return (
     <View>
+      <Dictate
+        label="🎤 Speak your plan"
+        hint="Say it naturally — e.g. “Cook lunch at 11, call Amma at 4 pm, then evening walk with the baby.”"
+        onText={fromVoice}
+      />
+      {!!heard && <T small muted style={{ marginBottom: 8 }}>{heard}</T>}
       <Row style={{ alignItems: 'flex-start' }}>
         <View style={{ flex: 1 }}>
           <Field value={text} onChangeText={setText} placeholder="Add something to today…" onSubmitEditing={add} returnKeyType="done" accessibilityLabel="New plan item" />
@@ -146,62 +165,98 @@ function ItemLine({ item, right }: { item: PlanItem; right?: React.ReactNode }) 
   );
 }
 
+function Suggestions({ exclude, onAdd }: { exclude: string[]; onAdd: (i: PlanItem) => void }) {
+  const { data } = useStore();
+  const usual = usualItems(data, todayStr(), exclude);
+  if (!usual.length) return null;
+  return (
+    <View style={{ marginBottom: 10 }}>
+      <T small muted style={{ marginBottom: 4 }}>Your usual — tap to add</T>
+      <Row style={{ flexWrap: 'wrap', gap: 6 }}>
+        {usual.map((u) => (
+          <Chip key={u.text} label={`+ ${u.text}${u.time ? ' · ' + to12h(u.time) : ''}`} onPress={() => onAdd({ id: uid(), text: u.text, time: u.time, status: 'open' })} />
+        ))}
+      </Row>
+    </View>
+  );
+}
+
 function PlanForm() {
   const { data, update } = useStore();
   const t = useTheme();
   const today = todayStr();
   const carried = useMemo(() => carriedInto(data, today), [data, today]);
   const [bring, setBring] = useState<Record<string, boolean>>(() => Object.fromEntries(carried.map((c) => [c.id, (c.carryCount ?? 0) < 3])));
-  const [intention, setIntention] = useState('');
-  const [items, setItems] = useState<PlanItem[]>([]);
+  const intentionD = useDraft(`plan.${today}.intention`, '');
+  const itemsD = useDraft<PlanItem[]>(`plan.${today}.items`, [], (v) => !v.length);
+  const intention = intentionD.value;
+  const items = itemsD.value;
+  const setItems = itemsD.setValue;
+  const restored = intentionD.restored || itemsD.restored;
+  const evs = eventsOn(data.events, today);
 
-  const save = () => {
-    const brought: PlanItem[] = carried
+  const brought = (): PlanItem[] =>
+    carried
       .filter((c) => bring[c.id])
       .map((c) => ({ ...c, id: uid(), status: 'open' as PlanStatus, carriedFrom: c.carriedFrom ?? data.dayPlans.find((p) => p.items.includes(c))?.date, carryCount: (c.carryCount ?? 0) + 1 }));
-    const plan: DayPlan = {
-      date: today,
-      intention: intention.trim(),
-      items: [...brought, ...items].sort((a, b) => (a.time ?? '99').localeCompare(b.time ?? '99')),
-      plannedAt: new Date().toISOString(),
-    };
+
+  const save = (extra: PlanItem[] = items) => {
+    const plan: DayPlan = { date: today, intention: intention.trim(), items: [...brought(), ...extra].sort(byTime), plannedAt: new Date().toISOString() };
     update((d) => upsertPlan(d, plan));
+    intentionD.clear();
+    itemsD.clear();
   };
 
+  const keepCount = carried.filter((c) => bring[c.id]).length;
+
   return (
-    <Card>
-      <H level={2}>Plan my day ☀️</H>
-      <T muted style={{ marginBottom: 12 }}>Two minutes. Only what’s realistic — with the baby, the house and everything else.</T>
-      <Field label="What will I protect today?" value={intention} onChangeText={setIntention} placeholder="20 minutes of reading during the nap" />
-
-      {carried.length > 0 && (
-        <View style={{ marginBottom: 12 }}>
-          <T bold style={{ marginBottom: 6 }}>From yesterday</T>
-          {carried.map((c) => (
-            <Pressable key={c.id} onPress={() => setBring((b) => ({ ...b, [c.id]: !b[c.id] }))} accessibilityRole="checkbox" accessibilityState={{ checked: !!bring[c.id] }} style={{ minHeight: 48, paddingVertical: 6 }}>
-              <Row>
-                <T size={22}>{bring[c.id] ? '☑️' : '⬜'}</T>
-                <ItemLine
-                  item={c}
-                  right={(c.carryCount ?? 0) >= 3 ? <T small style={{ color: t.warn }}>Moved {c.carryCount} times — keep it, or let it go?</T> : undefined}
-                />
-              </Row>
-            </Pressable>
-          ))}
-        </View>
+    <>
+      {(keepCount > 0 || evs.length > 0) && items.length === 0 && (
+        <Card style={{ backgroundColor: t.primarySoft }}>
+          <H level={3}>⚡ Start my day in one tap</H>
+          <T style={{ marginBottom: 10 }}>
+            {[keepCount ? `Keep ${keepCount} unfinished from yesterday` : '', evs.length ? `${evs.length} event${evs.length > 1 ? 's' : ''} on your planner` : ''].filter(Boolean).join(' · ')}
+          </T>
+          <Btn primary title="✓ Start my day" onPress={() => save([])} />
+          <T small muted style={{ marginTop: 6 }}>You can still add more to the list after.</T>
+        </Card>
       )}
+      <Card>
+        <H level={2}>Plan my day ☀️</H>
+        <T muted style={{ marginBottom: 12 }}>Two minutes. Only what’s realistic — with the baby, the house and everything else.</T>
+        {restored && <T small style={{ color: t.desired, marginBottom: 8 }}>📝 Picked up where you left off.</T>}
+        <Field label="What will I protect today?" value={intention} onChangeText={intentionD.setValue} placeholder="20 minutes of reading during the nap" />
 
-      <T bold style={{ marginBottom: 6 }}>Today’s list</T>
-      {items.map((i) => (
-        <Row key={i.id} style={{ minHeight: 44 }}>
-          <T>•</T>
-          <ItemLine item={i} />
-          <LinkBtn title="✕" onPress={() => setItems((xs) => xs.filter((x) => x.id !== i.id))} />
-        </Row>
-      ))}
-      <ItemAdder onAdd={(i) => setItems((xs) => [...xs, i])} />
-      <Btn primary title="Save my plan" disabled={!items.length && !Object.values(bring).some(Boolean) && !intention.trim()} onPress={save} style={{ marginTop: 8 }} />
-    </Card>
+        {carried.length > 0 && (
+          <View style={{ marginBottom: 12 }}>
+            <T bold style={{ marginBottom: 6 }}>From yesterday</T>
+            {carried.map((c) => (
+              <Pressable key={c.id} onPress={() => setBring((b) => ({ ...b, [c.id]: !b[c.id] }))} accessibilityRole="checkbox" accessibilityState={{ checked: !!bring[c.id] }} style={{ minHeight: 48, paddingVertical: 6 }}>
+                <Row>
+                  <T size={22}>{bring[c.id] ? '☑️' : '⬜'}</T>
+                  <ItemLine
+                    item={c}
+                    right={(c.carryCount ?? 0) >= 3 ? <T small style={{ color: t.warn }}>Moved {c.carryCount} times — let it go, simplify it, or ask someone to help?</T> : undefined}
+                  />
+                </Row>
+              </Pressable>
+            ))}
+          </View>
+        )}
+
+        <T bold style={{ marginBottom: 6 }}>Today’s list</T>
+        <Suggestions exclude={[...items.map((i) => i.text), ...carried.filter((c) => bring[c.id]).map((c) => c.text)]} onAdd={(i) => setItems((xs) => [...xs, i].sort(byTime))} />
+        {items.map((i) => (
+          <Row key={i.id} style={{ minHeight: 44 }}>
+            <T>•</T>
+            <ItemLine item={i} />
+            <LinkBtn title="✕" onPress={() => setItems((xs) => xs.filter((x) => x.id !== i.id))} />
+          </Row>
+        ))}
+        <ItemAdder onAdd={(add) => setItems((xs) => [...xs, ...add].sort(byTime))} />
+        <Btn primary title="Save my plan" disabled={!items.length && !Object.values(bring).some(Boolean) && !intention.trim()} onPress={() => save()} style={{ marginTop: 8 }} />
+      </Card>
+    </>
   );
 }
 
@@ -232,11 +287,13 @@ function Checklist({ plan, openEvening }: { plan: DayPlan; openEvening: () => vo
             <Row>
               <T size={22}>{i.status === 'done' ? '✅' : i.status === 'partly' ? '🌗' : i.status === 'moved' ? '➡️' : '⬜'}</T>
               <ItemLine item={i} />
+              <LinkBtn title="✕" onPress={() => setItems(plan.items.filter((x) => x.id !== i.id))} />
             </Row>
           </Pressable>
         ))}
         <View style={{ marginTop: 8 }}>
-          <ItemAdder onAdd={(i) => setItems([...plan.items, i])} />
+          <Suggestions exclude={plan.items.map((i) => i.text)} onAdd={(i) => setItems([...plan.items, i].sort(byTime))} />
+          <ItemAdder onAdd={(add) => setItems([...plan.items, ...add].sort(byTime))} />
         </View>
       </Card>
       {plan.evening ? (

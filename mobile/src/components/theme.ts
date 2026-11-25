@@ -51,10 +51,50 @@ const dark: typeof light = {
   shadow: '#000000',
 };
 
+// Night feeds: very dim, warm amber tones so the screen doesn't wake you or the baby.
+const night: typeof light = {
+  bg: '#0F0B09',
+  surface: '#19130F',
+  text: '#D8C5B1',
+  muted: '#93806F',
+  line: '#2A201A',
+  primary: '#D59C66',
+  primaryInk: '#19130F',
+  primarySoft: '#2B2018',
+  accent: '#C07E5B',
+  accentSoft: '#281C15',
+  gold: '#C29A52',
+  past: '#B08A68',
+  present: '#D59C66',
+  desired: '#8FA68A',
+  warn: '#C98B4E',
+  danger: '#C46A5E',
+  up: '#8FB08A',
+  heroFrom: '#241811',
+  heroMid: '#2F1E14',
+  heroTo: '#3B2517',
+  heroText: '#E2CDB6',
+  shadow: '#000000',
+};
+
 export type Theme = typeof light;
 
+let nightNow = false;
+/** Set by the app shell (from the night-mode setting and the clock). */
+export const setNightNow = (v: boolean) => {
+  nightNow = v;
+};
+export const isNightNow = () => nightNow;
+
+export function isNightHour(d = new Date()) {
+  const m = d.getHours() * 60 + d.getMinutes();
+  return m >= 21 * 60 + 30 || m < 6 * 60;
+}
+
 export function useTheme(): Theme {
-  return useColorScheme() === 'dark' ? dark : light;
+  const scheme = useColorScheme();
+  if (nightNow) return night;
+  return scheme === 'dark' ? dark : light;
 }
 
 // Fonts: Fraunces (warm serif) for titles, Nunito (soft, rounded) for everything else.

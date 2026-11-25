@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import {
   Alert,
   Linking,
@@ -81,11 +81,21 @@ export function SectionLabel({ children }: { children: string }) {
 }
 
 // ---------- Layout ----------
+/** Screens with a bottom action bar hide the floating quick-add button so it never covers Save. */
+export const FabHide = createContext<(hidden: boolean) => void>(() => {});
+
 export function Screen({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
   const t = useTheme();
+  const hideFab = useContext(FabHide);
+  const hasFooter = !!footer;
+  useEffect(() => {
+    if (!hasFooter) return;
+    hideFab(true);
+    return () => hideFab(false);
+  }, [hasFooter]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ padding: 18, paddingBottom: footer ? 48 : 110 }} keyboardShouldPersistTaps="handled">
         {children}
       </ScrollView>
       {footer && <View style={[s.footer, { backgroundColor: t.bg, borderTopColor: t.line }]}>{footer}</View>}
