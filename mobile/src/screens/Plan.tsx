@@ -20,6 +20,10 @@ import { Btn, Card, Chip, Choice, Field, H, LinkBtn, Row, Screen, Segmented, T, 
 import { MonthGrid, TimeField, to12h } from '../components/pickers';
 import { useTheme } from '../components/theme';
 import type { DayPlan, PlanItem, PlanStatus, PlannerEvent } from '../lib/types';
+import Dictate from '../components/Dictate';
+import { parseSpokenPlan } from '../lib/voicePlan';
+
+const byTime = (a: PlanItem, b: PlanItem) => (a.time ?? '99').localeCompare(b.time ?? '99');
 
 export type PlanView = 'today' | 'evening' | 'year';
 
@@ -102,20 +106,33 @@ function RolePicker({ value, onChange }: { value?: string; onChange: (r?: string
   );
 }
 
-function ItemAdder({ onAdd }: { onAdd: (i: PlanItem) => void }) {
+function ItemAdder({ onAdd }: { onAdd: (items: PlanItem[]) => void }) {
   const [text, setText] = useState('');
   const [time, setTime] = useState<string | undefined>();
   const [role, setRole] = useState<string | undefined>();
   const [more, setMore] = useState(false);
+  const [heard, setHeard] = useState('');
   const add = () => {
     if (!text.trim()) return;
-    onAdd({ id: uid(), text: text.trim(), time, role, status: 'open' });
+    onAdd([{ id: uid(), text: text.trim(), time, role, status: 'open' }]);
     setText('');
     setTime(undefined);
     setRole(undefined);
   };
+  const fromVoice = (spoken: string) => {
+    const items = parseSpokenPlan(spoken);
+    if (!items.length) return;
+    onAdd(items.map((i) => ({ id: uid(), text: i.text, time: i.time, status: 'open' as PlanStatus })));
+    setHeard(`Added ${items.length} from your voice: ${items.map((i) => (i.time ? `${i.text} (${to12h(i.time)})` : i.text)).join(' · ')}. Check the times, and tap ✕ on anything I misheard.`);
+  };
   return (
     <View>
+      <Dictate
+        label="🎤 Speak your plan"
+        hint="Say it naturally — e.g. “Cook lunch at 11, call Amma at 4 pm, then evening walk with the baby.”"
+        onText={fromVoice}
+      />
+      {!!heard && <T small muted style={{ marginBottom: 8 }}>{heard}</T>}
       <Row style={{ alignItems: 'flex-start' }}>
         <View style={{ flex: 1 }}>
           <Field value={text} onChangeText={setText} placeholder="Add something to today…" onSubmitEditing={add} returnKeyType="done" accessibilityLabel="New plan item" />
@@ -199,7 +216,7 @@ function PlanForm() {
           <LinkBtn title="✕" onPress={() => setItems((xs) => xs.filter((x) => x.id !== i.id))} />
         </Row>
       ))}
-      <ItemAdder onAdd={(i) => setItems((xs) => [...xs, i])} />
+      <ItemAdder onAdd={(add) => setItems((xs) => [...xs, ...add].sort(byTime))} />
       <Btn primary title="Save my plan" disabled={!items.length && !Object.values(bring).some(Boolean) && !intention.trim()} onPress={save} style={{ marginTop: 8 }} />
     </Card>
   );
@@ -232,11 +249,12 @@ function Checklist({ plan, openEvening }: { plan: DayPlan; openEvening: () => vo
             <Row>
               <T size={22}>{i.status === 'done' ? '✅' : i.status === 'partly' ? '🌗' : i.status === 'moved' ? '➡️' : '⬜'}</T>
               <ItemLine item={i} />
+              <LinkBtn title="✕" onPress={() => setItems(plan.items.filter((x) => x.id !== i.id))} />
             </Row>
           </Pressable>
         ))}
         <View style={{ marginTop: 8 }}>
-          <ItemAdder onAdd={(i) => setItems([...plan.items, i])} />
+          <ItemAdder onAdd={(add) => setItems([...plan.items, ...add].sort(byTime))} />
         </View>
       </Card>
       {plan.evening ? (

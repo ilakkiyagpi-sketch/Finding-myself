@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { Btn, Chip, Row, T } from './ui';
+import { getLang } from '../lib/i18n';
 
 const LANGS = [
   { code: 'ta-IN', label: 'தமிழ்' },
@@ -9,21 +10,29 @@ const LANGS = [
 ];
 
 /** Speak instead of typing: appends what was said (Tamil or English) to the text. */
-export default function Dictate({ onText }: { onText: (spoken: string) => void }) {
-  const [lang, setLang] = useState('en-IN');
-  const [listening, setListening] = useState(false);
+export default function Dictate({ onText, label = '🎤 Speak instead of typing', hint }: { onText: (spoken: string) => void; label?: string; hint?: string }) {
+  const [lang, setLang] = useState(getLang() === 'ta' ? 'ta-IN' : 'en-IN');
+  const [listening, setListeningState] = useState(false);
+  // Only the button that started listening reacts to speech results.
+  const active = useRef(false);
+  const setListening = (v: boolean) => {
+    active.current = v;
+    setListeningState(v);
+  };
   const [partial, setPartial] = useState('');
   const [err, setErr] = useState('');
 
   useSpeechRecognitionEvent('result', (e) => {
+    if (!active.current) return;
     const text = e.results[0]?.transcript ?? '';
     if (e.isFinal) {
       if (text.trim()) onText(text.trim());
       setPartial('');
     } else setPartial(text);
   });
-  useSpeechRecognitionEvent('end', () => setListening(false));
+  useSpeechRecognitionEvent('end', () => active.current && setListening(false));
   useSpeechRecognitionEvent('error', (e) => {
+    if (!active.current) return;
     setListening(false);
     setErr(
       e.error === 'language-not-supported'
@@ -53,12 +62,12 @@ export default function Dictate({ onText }: { onText: (spoken: string) => void }
         {listening ? (
           <Btn primary title="⏹ Stop speaking" onPress={() => ExpoSpeechRecognitionModule.stop()} />
         ) : (
-          <Btn title="🎤 Speak instead of typing" onPress={start} />
+          <Btn title={label} onPress={start} />
         )}
         {!listening &&
           LANGS.map((l) => <Chip key={l.code} label={l.label} on={lang === l.code} onPress={() => setLang(l.code)} />)}
       </Row>
-      {listening && <T small muted style={{ marginTop: 4 }}>{partial ? `“${partial}…”` : 'Listening… speak naturally.'}</T>}
+      {listening && <T small muted style={{ marginTop: 4 }}>{partial ? `“${partial}…”` : hint ?? 'Listening… speak naturally.'}</T>}
       {!!err && <T small muted style={{ marginTop: 4 }}>{err}</T>}
     </View>
   );

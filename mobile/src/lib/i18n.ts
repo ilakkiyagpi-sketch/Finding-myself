@@ -318,6 +318,9 @@ const TA: Record<string, string> = {
   'Thank you for checking in 💛': 'பதிவு செய்ததற்கு நன்றி 💛',
   'Language / மொழி': 'மொழி / Language',
   'For you': 'உங்களுக்காக',
+  '🎤 Speak your plan': '🎤 உங்கள் திட்டத்தைச் சொல்லுங்கள்',
+  'Say it naturally — e.g. “Cook lunch at 11, call Amma at 4 pm, then evening walk with the baby.”':
+    'இயல்பாகச் சொல்லுங்கள் — எ.கா. “காலை 11 மணிக்கு சமையல், 4 மணிக்கு அம்மாவுக்கு போன், அப்புறம் மாலை குழந்தையுடன் நடை.”',
   Growing: 'வளர்ச்சி',
   THEN: 'அப்போது',
   NOW: 'இப்போது',
