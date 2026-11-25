@@ -7,7 +7,7 @@ import { todayStr } from './dates';
 import { addDays, at, eventsOn, parseTime, prettyDate, upcoming, yearsSince } from './planner';
 import type { AppData } from './types';
 
-export type NotifyTarget = { screen: 'plan' | 'evening' | 'year'; date?: string };
+export type NotifyTarget = { screen: 'plan' | 'evening' | 'year' | 'review' | 'letters' | 'self'; date?: string };
 
 const CHANNEL = 'gentle-reminders';
 const MORNING_DAYS = 45; // per-day morning messages list that day's events
@@ -104,6 +104,26 @@ async function rebuild(d: AppData) {
       content: { title: 'Time to tick your day ✓', body: 'What got done, what moves to tomorrow — and what went well?', data: { screen: 'evening' } },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute, channelId: CHANNEL },
     });
+  }
+
+  // Sunday review, 6 pm.
+  await Notifications.scheduleNotificationAsync({
+    content: { title: 'Your Sunday review 🌿', body: 'Five minutes: wins, what was hard, one change for next week.', data: { screen: 'review' } },
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.WEEKLY, weekday: 1, hour: 18, minute: 0, channelId: CHANNEL },
+  });
+
+  // Time-capsule letters unlock.
+  for (const l of d.letters) {
+    if (l.openedAt) continue;
+    const when = at(l.openOn, s.eventReminderTime);
+    if (when.getTime() > now) await schedule(when, '💌 A letter from your past self', 'It’s ready to open today.', { screen: 'letters' });
+  }
+
+  // Monthly self-graph re-score, 30 days after the last snapshot.
+  const lastSnap = d.snapshots[d.snapshots.length - 1];
+  if (lastSnap) {
+    const when = at(addDays(lastSnap.date.slice(0, 10), 30), s.eventReminderTime);
+    if (when.getTime() > now) await schedule(when, 'How have you changed this month? 🪞', 'Re-score your self graph — two minutes.', { screen: 'self' });
   }
 
   // Year planner events.

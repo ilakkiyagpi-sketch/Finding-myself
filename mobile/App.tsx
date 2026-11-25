@@ -18,8 +18,10 @@ import { onReminderTap, setupNotifications, syncNotifications } from './src/lib/
 import { todayStr } from './src/lib/dates';
 import { LockGate } from './src/components/Lock';
 import { maybeAutoBackup } from './src/lib/backup';
+import Review, { reviewDue } from './src/screens/Review';
+import type { Section } from './src/screens/Self';
 
-export type Tab = 'home' | 'plan' | 'checkin' | 'journal' | 'self' | 'rhythm' | 'more';
+export type Tab = 'home' | 'plan' | 'checkin' | 'journal' | 'self' | 'rhythm' | 'more' | 'review';
 
 const NAV: { key: Tab; label: string; icon: string }[] = [
   { key: 'home', label: 'Home', icon: '🏡' },
@@ -70,7 +72,7 @@ function useReminders() {
     if (!onboarded) return;
     const id = setTimeout(() => syncNotifications(data), 1500);
     return () => clearTimeout(id);
-  }, [data.events, data.dayPlans, data.settings, data.profile?.name, onboarded]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [data.events, data.dayPlans, data.settings, data.profile?.name, data.letters, data.snapshots.length, onboarded]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
 /** Weekly silent Google Drive backup when the app comes to the front (if turned on). */
@@ -96,10 +98,25 @@ function Shell() {
   useReminders();
   useAutoBackup();
   const t = useTheme();
+  const latest = useRef(data);
+  latest.current = data;
   const [tab, setTab] = useState<Tab>('home');
   const [planView, setPlanView] = useState<PlanView>('today');
   const [focusDate, setFocusDate] = useState<string | undefined>();
   const [restoring, setRestoring] = useState(false);
+  const [reviewWeek, setReviewWeek] = useState<string | null>(null);
+  const [selfSection, setSelfSection] = useState<Section>('graph');
+  const [selfKey, setSelfKey] = useState(0);
+
+  const openReview = (ws: string) => {
+    setReviewWeek(ws);
+    setTab('review');
+  };
+  const openSelf = (section: Section) => {
+    setSelfSection(section);
+    setSelfKey((k) => k + 1);
+    setTab('self');
+  };
 
   const openPlan = (v: PlanView, date?: string) => {
     setPlanView(v);
@@ -108,7 +125,19 @@ function Shell() {
   };
 
   // Reminder taps open the matching screen.
-  useEffect(() => onReminderTap((r) => openPlan(r.screen === 'year' ? 'year' : r.screen === 'evening' ? 'evening' : 'today', r.date)), []);
+  useEffect(
+    () =>
+      onReminderTap((r) => {
+        if (r.screen === 'review') {
+          const ws = reviewDue(latest.current);
+          return ws ? openReview(ws) : setTab('home');
+        }
+        if (r.screen === 'letters') return openSelf('compass');
+        if (r.screen === 'self') return openSelf('graph');
+        openPlan(r.screen === 'year' ? 'year' : r.screen === 'evening' ? 'evening' : 'today', r.date);
+      }),
+    [], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   // Morning: the first time the app opens before 2 pm without a plan, ask for the day plan.
   const s = data.settings;
@@ -148,15 +177,16 @@ function Shell() {
     body = (
       <>
         <View style={{ flex: 1 }}>
-          {tab === 'home' && <Home go={setTab} openPlan={openPlan} />}
+          {tab === 'home' && <Home go={setTab} openPlan={openPlan} openReview={openReview} openLetters={() => openSelf('compass')} />}
+          {tab === 'review' && reviewWeek && <Review weekStartDate={reviewWeek} done={() => setTab('home')} />}
           {tab === 'plan' && <Plan view={planView} setView={setPlanView} focusDate={focusDate} />}
           {tab === 'checkin' && <CheckIn done={() => setTab('home')} />}
           {tab === 'journal' && <Journal />}
-          {tab === 'self' && <Self />}
+          {tab === 'self' && <Self key={selfKey} initialSection={selfSection} />}
           {tab === 'rhythm' && <Rhythm />}
           {tab === 'more' && <More go={setTab} />}
         </View>
-        {tab !== 'checkin' && !(tab === 'plan' && planView === 'evening') && (
+        {tab !== 'checkin' && tab !== 'review' && !(tab === 'plan' && planView === 'evening') && (
           <View style={{ flexDirection: 'row', backgroundColor: t.surface, borderTopWidth: 1, borderTopColor: t.line }} accessibilityRole="tablist">
             {NAV.map((n) => {
               const on = tab === n.key;

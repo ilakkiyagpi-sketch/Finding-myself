@@ -48,7 +48,10 @@ export async function keepRecording(tmpUri: string): Promise<string> {
 }
 
 export function referencedMedia(d: AppData): string[] {
-  return d.journal.flatMap((j) => [...(j.photos ?? []), ...(j.audio ?? []).map((a) => a.name)]);
+  return [
+    ...d.journal.flatMap((j) => [...(j.photos ?? []), ...(j.audio ?? []).map((a) => a.name)]),
+    ...(d.chapters ?? []).flatMap((c) => (c.photo ? [c.photo] : [])),
+  ];
 }
 
 /** name → base64 for every media file the data refers to. */

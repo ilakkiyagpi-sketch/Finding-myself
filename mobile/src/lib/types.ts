@@ -152,6 +152,70 @@ export interface Settings {
   autoBackup?: boolean; // weekly Google Drive backup when the app opens
 }
 
+// ---------- Rewind (life story) ----------
+export type SceneType = 'high' | 'low' | 'turning' | 'fullyMe' | 'proud';
+export interface Scene {
+  id: string;
+  type: SceneType;
+  text: string;
+}
+export interface LifeChapter {
+  id: string;
+  title: string; // "The college dreamer"
+  emoji: string;
+  fromYear?: number;
+  toYear?: number; // undefined = ongoing
+  summary: string;
+  scenes: Scene[];
+  traits: string[]; // who I was then: curious, bold…
+  loved: string[]; // passions, places, music, people
+  photo?: string; // media file name
+}
+
+// ---------- Compass (dreams) & letters ----------
+export type DreamOrigin = 'revive' | 'evolve' | 'new';
+export type DreamStage = 'seed' | 'sprout' | 'grow';
+export interface Dream {
+  id: string;
+  title: string;
+  origin: DreamOrigin;
+  stage: DreamStage;
+  why: string;
+  // WOOP
+  outcome: string;
+  obstacle: string;
+  plan: string; // "If <obstacle>, then I will …"
+  steps: { id: string; text: string; done: boolean }[];
+  createdAt: string;
+}
+
+export interface Letter {
+  id: string;
+  writtenAt: string;
+  openOn: string; // YYYY-MM-DD
+  text: string;
+  openedAt?: string;
+}
+
+// ---------- Mental load ----------
+export type Who = 'me' | 'partner' | 'family' | 'shared' | 'paid';
+export interface LoadTask {
+  id: string;
+  name: string;
+  notices: Who; // who remembers it needs doing
+  plans: Who;
+  does: Who;
+  action: 'keep' | 'share' | 'simplify' | 'drop';
+}
+
+export interface WeeklyReview {
+  weekStart: string; // Monday YYYY-MM-DD
+  wins: string;
+  hard: string;
+  adjustment: string;
+  doneAt: string;
+}
+
 export interface AppData {
   version: 1;
   profile?: Profile;
@@ -163,6 +227,11 @@ export interface AppData {
   roles: Role[];
   dayPlans: DayPlan[];
   events: PlannerEvent[];
+  chapters: LifeChapter[];
+  dreams: Dream[];
+  letters: Letter[];
+  loadTasks: LoadTask[];
+  weeklyReviews: WeeklyReview[];
   settings: Settings;
   updatedAt: string;
 }
@@ -177,6 +246,11 @@ export const emptyData = (): AppData => ({
   roles: [],
   dayPlans: [],
   events: [],
+  chapters: [],
+  dreams: [],
+  letters: [],
+  loadTasks: [],
+  weeklyReviews: [],
   settings: {
     country: 'IN',
     wakeTime: '07:00',

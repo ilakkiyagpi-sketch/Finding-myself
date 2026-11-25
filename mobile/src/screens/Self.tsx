@@ -5,7 +5,9 @@ import { gainedPieces, latestSnapshot, missingPieces, whatHelps } from '../lib/i
 import { MONTHS } from '../lib/planner';
 import type { AppData, Quadrant } from '../lib/types';
 import { DIMENSIONS, type Scores } from '../lib/types';
-import { Btn, Card, H, Radar, RadarLegend, Row, Screen, Slider, Sparkline, T } from '../components/ui';
+import { Btn, Card, Chip, H, Radar, RadarLegend, Row, Screen, Segmented, Slider, Sparkline, T } from '../components/ui';
+import Rewind from './Rewind';
+import Compass from './Compass';
 import { useTheme } from '../components/theme';
 
 function PieceRow({ left, right, color }: { left: string; right: string; color?: string }) {
@@ -20,7 +22,25 @@ function PieceRow({ left, right, color }: { left: string; right: string; color?:
   );
 }
 
-export default function Self() {
+export type Section = 'graph' | 'rewind' | 'compass';
+const SECTIONS: { key: Section; label: string }[] = [
+  { key: 'graph', label: '🪞 Now' },
+  { key: 'rewind', label: '⏪ Rewind' },
+  { key: 'compass', label: '🧭 Compass' },
+];
+
+export default function SelfTab({ initialSection = 'graph' }: { initialSection?: Section }) {
+  const [section, setSection] = useState<Section>(initialSection);
+  if (section === 'graph') return <Self switcher={<Segmented<Section> options={SECTIONS} value={section} onChange={setSection} />} />;
+  return (
+    <Screen>
+      <Segmented<Section> options={SECTIONS} value={section} onChange={setSection} />
+      {section === 'rewind' ? <Rewind /> : <Compass />}
+    </Screen>
+  );
+}
+
+function Self({ switcher }: { switcher: React.ReactNode }) {
   const { data, update } = useStore();
   const t = useTheme();
   const snap = latestSnapshot(data);
@@ -70,6 +90,7 @@ export default function Self() {
 
   return (
     <Screen>
+      {switcher}
       <H>My self graph</H>
       <T muted style={{ marginBottom: 12 }}>Then · Now · Want — {data.snapshots.length} snapshot{data.snapshots.length > 1 ? 's' : ''}</T>
       <Card>
@@ -106,6 +127,8 @@ export default function Self() {
           <Sparkline values={trend} />
         </View>
       </Card>
+
+      {data.snapshots.length > 1 && <ChangeTimeline />}
 
       {data.snapshots.length > 1 && (
         <Card>
@@ -188,6 +211,33 @@ function YearInColour() {
             <T small muted>{l}</T>
           </Row>
         ))}
+      </Row>
+    </Card>
+  );
+}
+
+function ChangeTimeline() {
+  const { data } = useStore();
+  const [dim, setDim] = useState<(typeof DIMENSIONS)[number]['key']>(DIMENSIONS[0].key);
+  const meta = DIMENSIONS.find((d) => d.key === dim)!;
+  const snaps = data.snapshots;
+  const values = snaps.map((s) => s.present[dim]);
+  return (
+    <Card>
+      <H level={3}>📉📈 My changing graph</H>
+      <T small muted>Pick a part of life to see how it moved, snapshot by snapshot.</T>
+      <Row style={{ flexWrap: 'wrap', gap: 6, marginVertical: 8 }}>
+        {DIMENSIONS.map((d) => (
+          <Chip key={d.key} label={d.emoji} on={dim === d.key} onPress={() => setDim(d.key)} />
+        ))}
+      </Row>
+      <T bold>{meta.emoji} {meta.label}</T>
+      <Sparkline values={values} />
+      <Row style={{ justifyContent: 'space-between' }}>
+        <T small muted>{new Date(snaps[0].date).toLocaleDateString()} · {values[0]}</T>
+        <T small muted>
+          now · {values[values.length - 1]} (want {snaps[snaps.length - 1].desired[dim]})
+        </T>
       </Row>
     </Card>
   );

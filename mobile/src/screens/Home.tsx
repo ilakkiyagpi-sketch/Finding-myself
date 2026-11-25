@@ -10,8 +10,13 @@ import { installedBuild, startUpdate } from '../lib/updates';
 import { eventsOn, planFor, planProgress } from '../lib/planner';
 import { to12h } from '../components/pickers';
 import type { PlanView } from './Plan';
+import { useState } from 'react';
+import Garden from '../components/Garden';
+import StressRelease from '../components/StressRelease';
+import { reviewDue } from './Review';
 
-export default function Home({ go, openPlan }: { go: (t: Tab) => void; openPlan: (v: PlanView, date?: string) => void }) {
+export default function Home({ go, openPlan, openReview, openLetters }: { go: (t: Tab) => void; openPlan: (v: PlanView, date?: string) => void; openReview: (weekStart: string) => void; openLetters: () => void }) {
+  const [calm, setCalm] = useState(false);
   const { data, update } = useStore();
   const t = useTheme();
   const p = data.profile!;
@@ -71,6 +76,8 @@ export default function Home({ go, openPlan }: { go: (t: Tab) => void; openPlan:
       </Card>
 
       <TodayPlanCard openPlan={openPlan} />
+      <ReviewCard openReview={openReview} />
+      <LettersReadyCard openLetters={openLetters} />
 
       <Pressable
         accessibilityRole="switch"
@@ -88,6 +95,10 @@ export default function Home({ go, openPlan }: { go: (t: Tab) => void; openPlan:
       >
         <T muted={!tough}>{tough ? '🫶 Tough-day mode is on — only the minimum today. That counts.' : '🌧️ Having a tough day? Tap to shrink today to the minimum.'}</T>
       </Pressable>
+      {(tough || checkedIn?.quadrant === 'unpleasant-high' || checkedIn?.quadrant === 'unpleasant-low') && (
+        <Btn title="🫧 Need a moment? Release some stress" onPress={() => setCalm(true)} style={{ marginBottom: 14 }} />
+      )}
+      <StressRelease visible={calm} onClose={() => setCalm(false)} />
 
       <Card>
         <H level={3}>Today’s check-in</H>
@@ -137,6 +148,7 @@ export default function Home({ go, openPlan }: { go: (t: Tab) => void; openPlan:
       </Card>
 
       <OnThisDayCard />
+      <Garden />
 
       {snap && (
         <Card>
@@ -214,6 +226,31 @@ function OnThisDayCard() {
       <T small muted>{m.when}</T>
       <T italic style={{ marginTop: 4 }}>“{m.text.length > 220 ? m.text.slice(0, 220) + '…' : m.text}”</T>
       {mem.length > 1 && <T small muted style={{ marginTop: 6 }}>+ {mem.length - 1} more memor{mem.length > 2 ? 'ies' : 'y'} from this date</T>}
+    </Card>
+  );
+}
+
+function ReviewCard({ openReview }: { openReview: (ws: string) => void }) {
+  const { data } = useStore();
+  const ws = reviewDue(data);
+  if (!ws) return null;
+  return (
+    <Card>
+      <H level={3}>🌿 Sunday review</H>
+      <T muted style={{ marginBottom: 8 }}>Five minutes: your wins, what was hard, and one change for next week.</T>
+      <Btn primary title="Look back at my week" onPress={() => openReview(ws)} />
+    </Card>
+  );
+}
+
+function LettersReadyCard({ openLetters }: { openLetters: () => void }) {
+  const { data } = useStore();
+  const ready = data.letters.filter((l) => l.openOn <= todayStr() && !l.openedAt);
+  if (!ready.length) return null;
+  return (
+    <Card>
+      <H level={3}>💌 A letter from your past self is ready</H>
+      <Btn primary title="Open it" onPress={openLetters} />
     </Card>
   );
 }
