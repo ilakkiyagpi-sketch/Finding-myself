@@ -7,8 +7,11 @@ import { useTheme } from '../components/theme';
 import type { HabitLevel } from '../lib/types';
 import type { Tab } from '../../App';
 import { installedBuild, startUpdate } from '../lib/updates';
+import { eventsOn, planFor, planProgress } from '../lib/planner';
+import { to12h } from '../components/pickers';
+import type { PlanView } from './Plan';
 
-export default function Home({ go }: { go: (t: Tab) => void }) {
+export default function Home({ go, openPlan }: { go: (t: Tab) => void; openPlan: (v: PlanView, date?: string) => void }) {
   const { data, update } = useStore();
   const t = useTheme();
   const p = data.profile!;
@@ -66,6 +69,8 @@ export default function Home({ go }: { go: (t: Tab) => void }) {
         </Row>
         <T>{homeInsight(data)}</T>
       </Card>
+
+      <TodayPlanCard openPlan={openPlan} />
 
       <Pressable
         accessibilityRole="switch"
@@ -148,5 +153,50 @@ export default function Home({ go }: { go: (t: Tab) => void }) {
         </Card>
       )}
     </Screen>
+  );
+}
+
+function TodayPlanCard({ openPlan }: { openPlan: (v: PlanView, date?: string) => void }) {
+  const { data } = useStore();
+  const t = useTheme();
+  const today = todayStr();
+  const plan = planFor(data, today);
+  const evs = eventsOn(data.events, today);
+  const { done, total } = planProgress(plan);
+  const evening = new Date().getHours() >= 17;
+  return (
+    <Card>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <H level={3}>☀️ Today’s plan</H>
+        {plan && total > 0 && <T muted>{done} of {total}</T>}
+      </Row>
+      {evs.map((e) => (
+        <T key={e.id} small>
+          {e.emoji} {e.title}
+          {e.time ? ` · ${to12h(e.time)}` : ''}
+        </T>
+      ))}
+      {!plan && (
+        <>
+          <T muted style={{ marginVertical: 8 }}>{data.settings.planSkippedOn === today ? 'Skipped today — that’s fine.' : 'Two minutes to plan a realistic day.'}</T>
+          <Btn primary title="Plan my day" onPress={() => openPlan('today')} />
+        </>
+      )}
+      {plan && (
+        <>
+          {!!plan.intention && <T style={{ marginVertical: 6 }}>Protecting: <T bold>{plan.intention}</T></T>}
+          {total > 0 && (
+            <View style={{ height: 10, borderRadius: 5, backgroundColor: t.primarySoft, overflow: 'hidden', marginVertical: 8 }}>
+              <View style={{ width: `${(done / total) * 100}%`, height: '100%', backgroundColor: t.desired }} />
+            </View>
+          )}
+          <Row>
+            <Btn title="Open my list" onPress={() => openPlan('today')} style={{ flex: 1 }} />
+            {!plan.evening && <Btn primary={evening} title="🌙 Evening check" onPress={() => openPlan('evening')} style={{ flex: 1 }} />}
+          </Row>
+          {plan.evening && <T small muted style={{ marginTop: 6 }}>🌙 Evening check done. Rest well.</T>}
+        </>
+      )}
+    </Card>
   );
 }

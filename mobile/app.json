@@ -26,7 +26,15 @@
     },
     "plugins": [
       "expo-sharing",
-      "@react-native-google-signin/google-signin"
+      "@react-native-google-signin/google-signin",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#7A5C8E"
+        }
+      ]
     ],
     "scheme": "findingmyself",
     "extra": {

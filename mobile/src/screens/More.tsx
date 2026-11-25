@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Linking, Platform, View } from 'react-native';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
@@ -9,6 +9,9 @@ import { decryptText, encryptText, isEncrypted } from '../lib/crypto';
 import { SEASONS, type AppData, type Country } from '../lib/types';
 import { Btn, Card, Choice, Field, H, Helplines, LinkBtn, Row, Screen, T, confirmAsync } from '../components/ui';
 import { checkForUpdate, installedBuild, startUpdate } from '../lib/updates';
+import { TimeField } from '../components/pickers';
+import { notificationsAllowed, setupNotifications, syncNotifications } from '../lib/notify';
+import type { Tab } from '../../App';
 
 const isAppData = (x: unknown): x is AppData =>
   typeof x === 'object' && x !== null && (x as AppData).version === 1 && Array.isArray((x as AppData).checkIns);
@@ -192,13 +195,55 @@ function UpdateCard() {
   );
 }
 
-export default function More() {
+function RemindersCard() {
+  const { data, update } = useStore();
+  const s = data.settings;
+  const [allowed, setAllowed] = useState<boolean | null>(null);
+  useEffect(() => {
+    notificationsAllowed().then(setAllowed);
+  }, []);
+  const set = (patch: Partial<typeof s>) => update((d) => ({ ...d, settings: { ...d.settings, ...patch } }));
+  if (Platform.OS === 'web') return null;
+  return (
+    <Card>
+      <H level={3}>🔔 Daily rhythm & reminders</H>
+      {allowed === false && (
+        <>
+          <T style={{ marginBottom: 8 }}>Notifications are off for this app, so reminders can’t reach you.</T>
+          <Btn
+            primary
+            title="Allow notifications"
+            onPress={async () => {
+              const ok = await setupNotifications();
+              setAllowed(ok);
+              if (ok) syncNotifications(data);
+              else Linking.openSettings();
+            }}
+          />
+          <View style={{ height: 12 }} />
+        </>
+      )}
+      <Choice label={s.remindMorning ? '☀️ Morning plan reminder: on' : '☀️ Morning plan reminder: off'} on={s.remindMorning} onPress={() => set({ remindMorning: !s.remindMorning })} />
+      {s.remindMorning && <View style={{ marginTop: 8 }}><TimeField label="I usually wake up at" value={s.wakeTime} onChange={(v) => v && set({ wakeTime: v })} /></View>}
+      <View style={{ height: 8 }} />
+      <Choice label={s.remindEvening ? '🌙 Evening checklist reminder: on' : '🌙 Evening checklist reminder: off'} on={s.remindEvening} onPress={() => set({ remindEvening: !s.remindEvening })} />
+      {s.remindEvening && <View style={{ marginTop: 8 }}><TimeField label="Evening check at" value={s.eveningTime} onChange={(v) => v && set({ eveningTime: v })} /></View>}
+      <View style={{ height: 8 }} />
+      <TimeField label="Planner reminders (all-day events) at" value={s.eventReminderTime} onChange={(v) => v && set({ eventReminderTime: v })} />
+      <T small muted>Events with a time also remind you 1 hour before. Reminders work offline.</T>
+    </Card>
+  );
+}
+
+export default function More({ go }: { go: (t: Tab) => void }) {
   const { data, update, wipe } = useStore();
   const p = data.profile!;
 
   return (
     <Screen>
       <H>More</H>
+      <Btn title="🌱 Rhythm — tiny habits & my roles" onPress={() => go('rhythm')} style={{ marginBottom: 14 }} />
+      <RemindersCard />
       <BackupCard />
 
       <Card>

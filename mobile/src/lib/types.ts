@@ -98,6 +98,39 @@ export interface Role {
 
 export type Country = 'IN' | 'US' | 'UK' | 'OTHER';
 
+// ---------- Day plan & year planner ----------
+export type PlanStatus = 'open' | 'done' | 'partly' | 'moved';
+
+export interface PlanItem {
+  id: string;
+  text: string;
+  time?: string; // "HH:MM"
+  role?: string; // role name, e.g. "Mother", "Me"
+  status: PlanStatus;
+  carriedFrom?: string; // YYYY-MM-DD it was moved from
+  carryCount?: number;
+}
+
+export interface DayPlan {
+  date: string; // YYYY-MM-DD
+  intention: string; // "What will I protect today?"
+  items: PlanItem[];
+  plannedAt: string;
+  evening?: { wentWell: string; mine: string; doneAt: string };
+}
+
+export interface PlannerEvent {
+  id: string;
+  title: string;
+  date: string; // YYYY-MM-DD (first occurrence for yearly events)
+  time?: string; // "HH:MM"
+  note?: string;
+  emoji: string;
+  repeatYearly: boolean; // birthdays, anniversaries
+  remindOnDay: boolean;
+  remindDaysBefore: number[]; // e.g. [1, 7]
+}
+
 export interface Settings {
   country: Country;
   googleClientId?: string;
@@ -106,6 +139,12 @@ export interface Settings {
   lastUpdateCheck?: string; // ISO time of the last check for a new app version
   availableUpdate?: { build: number; url: string; sizeMb: number; publishedAt: string };
   dismissedUpdateBuild?: number; // "Later" was tapped for this build
+  wakeTime: string; // "HH:MM" — morning plan reminder
+  eveningTime: string; // "HH:MM" — evening checklist reminder
+  remindMorning: boolean;
+  remindEvening: boolean;
+  eventReminderTime: string; // "HH:MM" for "on the day" / "days before" reminders of all-day events
+  planSkippedOn?: string; // YYYY-MM-DD: "not today" tapped on the morning plan
 }
 
 export interface AppData {
@@ -117,6 +156,8 @@ export interface AppData {
   habits: Habit[];
   habitLogs: HabitLog[];
   roles: Role[];
+  dayPlans: DayPlan[];
+  events: PlannerEvent[];
   settings: Settings;
   updatedAt: string;
 }
@@ -129,7 +170,16 @@ export const emptyData = (): AppData => ({
   habits: [],
   habitLogs: [],
   roles: [],
-  settings: { country: 'IN' },
+  dayPlans: [],
+  events: [],
+  settings: {
+    country: 'IN',
+    wakeTime: '07:00',
+    eveningTime: '21:00',
+    remindMorning: true,
+    remindEvening: true,
+    eventReminderTime: '08:00',
+  },
   updatedAt: new Date().toISOString(),
 });
 
