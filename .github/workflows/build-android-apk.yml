@@ -1,0 +1,104 @@
+name: Build Android APK
+
+# Builds an installable APK of the Expo app in mobile/ (for direct install, not the Play Store).
+# Run it from GitHub: Actions -> Build Android APK -> Run workflow.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['mobile/**', '.github/workflows/build-android-apk.yml']
+
+permissions:
+  contents: write # to publish the APK as a GitHub release
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Set version code
+        # Each build gets a higher versionCode so it installs over the previous one.
+        run: |
+          node -e '
+            const fs = require("fs");
+            const j = JSON.parse(fs.readFileSync("app.json"));
+            j.expo.android.versionCode = Number(process.env.RUN_NUMBER);
+            if (process.env.WEB_CLIENT_ID) j.expo.extra.googleWebClientId = process.env.WEB_CLIENT_ID;
+            fs.writeFileSync("app.json", JSON.stringify(j, null, 2));'
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+          WEB_CLIENT_ID: ${{ vars.GOOGLE_WEB_CLIENT_ID }}
+
+      - name: Generate native Android project
+        run: npx expo prebuild --platform android --no-install --clean
+        env:
+          CI: 1
+
+      - name: Build release APK
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Sign APK with the app's release key
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          mkdir -p ../out
+          if [ -z "${KEYSTORE_B64}" ]; then
+            echo "::warning::No signing key secrets set - APK is signed with a throwaway debug key. Google backup will not work and updates will need an uninstall. See docs/ANDROID_APP.md."
+            cp "$APK" ../out/finding-myself.apk
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          BT=$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)
+          "$ANDROID_HOME/build-tools/$BT/apksigner" sign \
+            --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KS_PASS \
+            --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASS \
+            --out ../out/finding-myself.apk "$APK"
+          "$ANDROID_HOME/build-tools/$BT/apksigner" verify --print-certs ../out/finding-myself.apk | grep -i "SHA-1"
+          rm -f "$RUNNER_TEMP/release.jks"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: finding-myself-apk
+          path: out/finding-myself.apk
+
+      - name: Publish as the "latest-apk" release (easy download on the phone)
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest-apk --yes --cleanup-tag 2>/dev/null || true
+          gh release create latest-apk out/finding-myself.apk \
+            --title "Finding Myself — Android app (build ${{ github.run_number }})" \
+            --notes "Open this page on your Android phone and tap finding-myself.apk to download and install. Built from ${{ github.sha }}." \
+            --prerelease --target "${{ github.sha }}"
