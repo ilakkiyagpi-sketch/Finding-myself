@@ -64,10 +64,30 @@ The APK is built for 64-bit ARM phones (practically every Android phone since ~2
 
 ---
 
+## What's in the app (v0.2)
+| Tab | What it does |
+|---|---|
+| 🏡 **Home** | Then·Now·Next card, today's plan, tough-day mode, stress release, check-in, tiny habits, question of the day, Sunday review (Sat–Mon), letters ready to open, "On this day", my garden |
+| ☀️ **Plan** | Morning plan (intention + list, carry-over from yesterday), tick through the day, evening check (done / partly / tomorrow + 2 questions). **Year planner**: events, birthdays (yearly), reminders on the day and 1 day–1 month before |
+| ✍️ **Journal** | Prompts, free write, **speak instead of typing (Tamil/English)**, photos, voice notes, search, #tags |
+| 🪞 **Self** | Self graph (then/now/want), missing & gained pieces, what helps me, year in colour, changing graph · **Rewind** (life chapters, key moments, Then-Me) · **Compass** (dreams seed→grow with WOOP, letters to future me) |
+| ☁️ **More** | Rhythm (habits, roles, **mental load**), reminders & times, Google backup (+ weekly auto), app lock, language (English / தமிழ்), wellbeing check (EPDS + PDF for a doctor), helplines, updates |
+
+**Reminders** (work offline): morning plan at wake-up time (lists that day's events), evening checklist,
+planner events, Sunday review (6 pm), monthly self-graph re-score, letters unlocking.
+Android may deliver a reminder a few minutes late to save battery.
+
+**Home-screen widget:** long-press the home screen → Widgets → *Finding Myself — Today*.
+Shows today's progress and next item, with one-tap Plan / Check in / Write.
+
+**Speaking in Tamil** uses Android's speech service. If it says the language isn't available,
+open Android Settings → *Google voice typing / Speech* and add Tamil (offline).
+
 ## How data & backup work
 | What | Where |
 |---|---|
 | All entries | One JSON file in the app's private folder (other apps can't read it). Saved safely (write-then-swap). |
+| Photos & voice notes | Files in the app's private media folder; **included in backups** (so backups grow with media). |
 | Google backup | `finding-myself-backup.json` in Drive's hidden *app data* folder. See/delete it: Google Drive → ⚙️ Settings → **Manage apps**. |
 | Passphrase (optional) | Encrypts the backup on the phone before upload (AES-256-GCM, PBKDF2). Forgotten passphrase = backup can't be opened. |
 | Offline | **More → Offline options** → save / restore a backup file. |

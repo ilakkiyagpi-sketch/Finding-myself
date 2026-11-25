@@ -1,9 +1,13 @@
 import { useState } from 'react';
 import { View } from 'react-native';
 import { useStore, uid } from '../lib/store';
-import { gainedPieces, latestSnapshot, missingPieces } from '../lib/insights';
+import { gainedPieces, latestSnapshot, missingPieces, whatHelps } from '../lib/insights';
+import { MONTHS } from '../lib/planner';
+import type { AppData, Quadrant } from '../lib/types';
 import { DIMENSIONS, type Scores } from '../lib/types';
-import { Btn, Card, H, Radar, RadarLegend, Row, Screen, Slider, Sparkline, T } from '../components/ui';
+import { Btn, Card, Chip, H, Radar, RadarLegend, Row, Screen, Segmented, Slider, Sparkline, T } from '../components/ui';
+import Rewind from './Rewind';
+import Compass from './Compass';
 import { useTheme } from '../components/theme';
 
 function PieceRow({ left, right, color }: { left: string; right: string; color?: string }) {
@@ -18,7 +22,25 @@ function PieceRow({ left, right, color }: { left: string; right: string; color?:
   );
 }
 
-export default function Self() {
+export type Section = 'graph' | 'rewind' | 'compass';
+const SECTIONS: { key: Section; label: string }[] = [
+  { key: 'graph', label: '🪞 Now' },
+  { key: 'rewind', label: '⏪ Rewind' },
+  { key: 'compass', label: '🧭 Compass' },
+];
+
+export default function SelfTab({ initialSection = 'graph' }: { initialSection?: Section }) {
+  const [section, setSection] = useState<Section>(initialSection);
+  if (section === 'graph') return <Self switcher={<Segmented<Section> options={SECTIONS} value={section} onChange={setSection} />} />;
+  return (
+    <Screen>
+      <Segmented<Section> options={SECTIONS} value={section} onChange={setSection} />
+      {section === 'rewind' ? <Rewind /> : <Compass />}
+    </Screen>
+  );
+}
+
+function Self({ switcher }: { switcher: React.ReactNode }) {
   const { data, update } = useStore();
   const t = useTheme();
   const snap = latestSnapshot(data);
@@ -68,6 +90,7 @@ export default function Self() {
 
   return (
     <Screen>
+      {switcher}
       <H>My self graph</H>
       <T muted style={{ marginBottom: 12 }}>Then · Now · Want — {data.snapshots.length} snapshot{data.snapshots.length > 1 ? 's' : ''}</T>
       <Card>
@@ -94,6 +117,9 @@ export default function Self() {
         ))}
       </Card>
 
+      <HelpsCard />
+      <YearInColour />
+
       <Card>
         <H level={3}>🪞 Feeling like myself</H>
         <T small muted>From your daily check-ins (last 30).</T>
@@ -101,6 +127,8 @@ export default function Self() {
           <Sparkline values={trend} />
         </View>
       </Card>
+
+      {data.snapshots.length > 1 && <ChangeTimeline />}
 
       {data.snapshots.length > 1 && (
         <Card>
@@ -114,5 +142,103 @@ export default function Self() {
         </Card>
       )}
     </Screen>
+  );
+}
+
+function HelpsCard() {
+  const { data } = useStore();
+  const helps = whatHelps(data);
+  return (
+    <Card>
+      <H level={3}>💡 What helps me</H>
+      {helps.length === 0 ? (
+        <T small muted>
+          After about two weeks of check-ins with “what’s affecting me” tags, the app will show what lifts you and what weighs on you. ({data.checkIns.length} check-ins so far.)
+        </T>
+      ) : (
+        helps.slice(0, 6).map((h) => (
+          <T key={h.key} style={{ marginVertical: 4 }}>
+            {h.withAvg > h.withoutAvg ? '🌱 ' : '🌧️ '}
+            {h.text}
+          </T>
+        ))
+      )}
+      <T small muted style={{ marginTop: 6 }}>Patterns, not rules — and worked out only on this phone.</T>
+    </Card>
+  );
+}
+
+function YearInColour() {
+  const { data } = useStore();
+  const t = useTheme();
+  const year = new Date().getFullYear();
+  const color: Record<Quadrant, string> = { 'pleasant-high': '#e9b949', 'pleasant-low': t.desired, 'unpleasant-high': '#d9774b', 'unpleasant-low': '#7b8fb8' };
+  const byDate = new Map((data as AppData).checkIns.map((c) => [c.date, c.quadrant]));
+  return (
+    <Card>
+      <H level={3}>🎨 My year in colour</H>
+      <View style={{ gap: 3, marginTop: 6 }}>
+        {MONTHS.map((m, mi) => {
+          const days = new Date(year, mi + 1, 0).getDate();
+          return (
+            <Row key={m} style={{ gap: 2 }}>
+              <T small muted style={{ width: 26 }}>{m.slice(0, 3)}</T>
+              {Array.from({ length: 31 }, (_, di) => {
+                const date = `${year}-${String(mi + 1).padStart(2, '0')}-${String(di + 1).padStart(2, '0')}`;
+                const q = byDate.get(date);
+                return (
+                  <View
+                    key={di}
+                    style={{ flex: 1, aspectRatio: 1, borderRadius: 2, backgroundColor: di >= days ? 'transparent' : q ? color[q] : t.line }}
+                  />
+                );
+              })}
+            </Row>
+          );
+        })}
+      </View>
+      <Row style={{ flexWrap: 'wrap', gap: 10, marginTop: 10 }}>
+        {(
+          [
+            ['pleasant-high', 'Good & energised'],
+            ['pleasant-low', 'Good & calm'],
+            ['unpleasant-high', 'Hard & wired'],
+            ['unpleasant-low', 'Hard & low'],
+          ] as [Quadrant, string][]
+        ).map(([q, l]) => (
+          <Row key={q} style={{ gap: 4 }}>
+            <View style={{ width: 10, height: 10, borderRadius: 2, backgroundColor: color[q] }} />
+            <T small muted>{l}</T>
+          </Row>
+        ))}
+      </Row>
+    </Card>
+  );
+}
+
+function ChangeTimeline() {
+  const { data } = useStore();
+  const [dim, setDim] = useState<(typeof DIMENSIONS)[number]['key']>(DIMENSIONS[0].key);
+  const meta = DIMENSIONS.find((d) => d.key === dim)!;
+  const snaps = data.snapshots;
+  const values = snaps.map((s) => s.present[dim]);
+  return (
+    <Card>
+      <H level={3}>📉📈 My changing graph</H>
+      <T small muted>Pick a part of life to see how it moved, snapshot by snapshot.</T>
+      <Row style={{ flexWrap: 'wrap', gap: 6, marginVertical: 8 }}>
+        {DIMENSIONS.map((d) => (
+          <Chip key={d.key} label={d.emoji} on={dim === d.key} onPress={() => setDim(d.key)} />
+        ))}
+      </Row>
+      <T bold>{meta.emoji} {meta.label}</T>
+      <Sparkline values={values} />
+      <Row style={{ justifyContent: 'space-between' }}>
+        <T small muted>{new Date(snaps[0].date).toLocaleDateString()} · {values[0]}</T>
+        <T small muted>
+          now · {values[values.length - 1]} (want {snaps[snaps.length - 1].desired[dim]})
+        </T>
+      </Row>
+    </Card>
   );
 }

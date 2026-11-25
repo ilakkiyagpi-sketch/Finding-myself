@@ -5,6 +5,7 @@ import { habitDaysInLast, meRole } from '../lib/insights';
 import { Btn, Card, Field, H, LinkBtn, Row, Screen, Slider, T } from '../components/ui';
 import { useTheme } from '../components/theme';
 import type { Habit, Role } from '../lib/types';
+import MentalLoad from '../components/MentalLoad';
 
 const emptyHabit = (): Habit => ({ id: '', identity: '', anchor: '', minimum: '', normal: '', stretch: '', createdAt: '' });
 
@@ -126,6 +127,8 @@ export default function Rhythm() {
         </Row>
         <T small muted>Tap a role to set hours and energy. Balance isn’t equal time — it’s conscious choice for this season.</T>
       </Card>
+
+      <MentalLoad />
 
       {roles.length > 1 && (
         <Card>

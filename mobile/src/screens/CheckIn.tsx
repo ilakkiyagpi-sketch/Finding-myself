@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { useStore, todayStr, uid } from '../lib/store';
-import { EMOTIONS, QUADRANTS } from '../lib/prompts';
+import { AFFECT_TAGS, EMOTIONS, QUADRANTS } from '../lib/prompts';
 import { needsSupport } from '../lib/safety';
-import { Btn, Card, Chips, Field, H, Screen, Slider, T, useSupportSheet } from '../components/ui';
+import { Btn, Card, Chip, Chips, Field, H, Row, Screen, Slider, T, useSupportSheet } from '../components/ui';
 import { useTheme } from '../components/theme';
 import type { Quadrant } from '../lib/types';
+import Dictate from '../components/Dictate';
 
 export default function CheckIn({ done }: { done: () => void }) {
   const { data, update } = useStore();
@@ -17,6 +18,8 @@ export default function CheckIn({ done }: { done: () => void }) {
   const [sleep, setSleep] = useState(existing?.sleepHours ?? 6);
   const [likeMyself, setLikeMyself] = useState(existing?.likeMyself ?? 5);
   const [mattered, setMattered] = useState(existing?.mattered ?? '');
+  const [tags, setTags] = useState<string[]>(existing?.tags ?? []);
+  const toggleTag = (k: string) => setTags((ts) => (ts.includes(k) ? ts.filter((x) => x !== k) : [...ts, k]));
   const support = useSupportSheet(done);
 
   const save = () => {
@@ -25,7 +28,7 @@ export default function CheckIn({ done }: { done: () => void }) {
       ...d,
       checkIns: [
         ...d.checkIns.filter((c) => c.date !== today),
-        { id: existing?.id ?? uid(), date: today, quadrant, emotion: emotion || quadrant, sleepHours: sleep, likeMyself, mattered: mattered.trim(), createdAt: new Date().toISOString() },
+        { id: existing?.id ?? uid(), date: today, quadrant, emotion: emotion || quadrant, sleepHours: sleep, likeMyself, mattered: mattered.trim(), tags, createdAt: new Date().toISOString() },
       ],
     }));
     if (needsSupport(mattered)) support.open();
@@ -84,6 +87,16 @@ export default function CheckIn({ done }: { done: () => void }) {
       </Card>
 
       <Card>
+        <H level={3}>What’s affecting me today?</H>
+        <T small muted>Tap any. Over time the app shows you what helps.</T>
+        <Row style={{ flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+          {AFFECT_TAGS.map((tg) => (
+            <Chip key={tg.key} label={tg.label} on={tags.includes(tg.key)} onPress={() => toggleTag(tg.key)} />
+          ))}
+        </Row>
+      </Card>
+
+      <Card>
         <Slider label="😴 Sleep last night (hours)" value={sleep} min={0} max={12} step={0.5} onChange={setSleep} />
         <Slider label="🪞 How much like myself did I feel today?" value={likeMyself} onChange={setLikeMyself} hint="0 = a stranger to myself · 10 = completely me" />
       </Card>
@@ -96,6 +109,7 @@ export default function CheckIn({ done }: { done: () => void }) {
           onChangeText={setMattered}
           placeholder="Baby laughed at the window. I had chai alone for 10 minutes."
         />
+        <Dictate onText={(spoken) => setMattered((cur) => (cur.trim() ? `${cur.trimEnd()} ${spoken}` : spoken))} />
       </Card>
       {support.sheet}
     </Screen>

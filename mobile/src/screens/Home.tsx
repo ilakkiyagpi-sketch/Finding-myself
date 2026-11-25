@@ -1,14 +1,25 @@
-import { Pressable, View } from 'react-native';
+import { Image, Pressable, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useStore, todayStr } from '../lib/store';
-import { habitDaysInLast, homeInsight, isHeavySeason, isToughDay, latestSnapshot } from '../lib/insights';
+import { habitDaysInLast, homeInsight, isHeavySeason, isToughDay, latestSnapshot, onThisDay } from '../lib/insights';
 import { promptOfTheDay } from '../lib/prompts';
-import { Btn, Card, Chip, H, LinkBtn, Row, Screen, T } from '../components/ui';
+import { Btn, Card, Chip, H, LinkBtn, Row, Screen, SectionLabel, T, ff } from '../components/ui';
+import { prettyDate } from '../lib/planner';
 import { useTheme } from '../components/theme';
 import type { HabitLevel } from '../lib/types';
 import type { Tab } from '../../App';
 import { installedBuild, startUpdate } from '../lib/updates';
+import { eventsOn, planFor, planProgress } from '../lib/planner';
+import { to12h } from '../components/pickers';
+import type { PlanView } from './Plan';
+import { useState } from 'react';
+import Garden from '../components/Garden';
+import StressRelease from '../components/StressRelease';
+import { reviewDue } from './Review';
+import { tr } from '../lib/i18n';
 
-export default function Home({ go }: { go: (t: Tab) => void }) {
+export default function Home({ go, openPlan, openReview, openLetters }: { go: (t: Tab) => void; openPlan: (v: PlanView, date?: string) => void; openReview: (weekStart: string) => void; openLetters: () => void }) {
+  const [calm, setCalm] = useState(false);
   const { data, update } = useStore();
   const t = useTheme();
   const p = data.profile!;
@@ -48,24 +59,37 @@ export default function Home({ go }: { go: (t: Tab) => void }) {
           </Row>
         </Card>
       )}
-      <T muted>{greet},</T>
-      <H>{p.name || 'friend'} 🌿</H>
-
-      <Card style={{ backgroundColor: t.primarySoft }}>
-        <Row style={{ alignItems: 'flex-start', marginBottom: 10 }}>
+      <LinearGradient colors={[t.heroFrom, t.heroMid, t.heroTo]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 26, padding: 20, marginBottom: 18 }}>
+        <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <View style={{ flex: 1 }}>
+            <T style={[{ color: t.heroText, opacity: 0.85 }, ff('semi')]}>{`${tr(greet)},`}</T>
+            <T size={30} style={[{ color: t.heroText, lineHeight: 36 }, ff('title')]}>{p.name || 'friend'}</T>
+            <T small style={{ color: t.heroText, opacity: 0.8 }}>{prettyDate(today)}</T>
+          </View>
+          <Image source={require('../../assets/logo-mark.png')} style={{ width: 64, height: 64, borderRadius: 16 }} accessibilityLabel="Finding Myself logo" />
+        </Row>
+        <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.25)', marginVertical: 14 }} />
+        <Row style={{ alignItems: 'flex-start' }}>
           {[
             ['THEN', p.wordsWas],
             ['NOW', p.wordsNow],
             ['NEXT', p.wordsWant],
           ].map(([label, words]) => (
             <View key={label as string} style={{ flex: 1 }}>
-              <T small muted>{label as string}</T>
-              <T bold>{(words as string[]).join(' · ') || '—'}</T>
+              <T small style={[{ color: t.heroText, opacity: 0.75, letterSpacing: 1.2, fontSize: 11.5 }, ff('heavy')]}>{tr(label as string)}</T>
+              <T style={[{ color: t.heroText }, ff('bold')]}>{(words as string[]).join('\n') || '—'}</T>
             </View>
           ))}
         </Row>
-        <T>{homeInsight(data)}</T>
-      </Card>
+        <View style={{ backgroundColor: 'rgba(255,255,255,0.14)', borderRadius: 16, padding: 12, marginTop: 14 }}>
+          <T style={{ color: t.heroText }}>{homeInsight(data)}</T>
+        </View>
+      </LinearGradient>
+
+      <SectionLabel>Today</SectionLabel>
+      <TodayPlanCard openPlan={openPlan} />
+      <ReviewCard openReview={openReview} />
+      <LettersReadyCard openLetters={openLetters} />
 
       <Pressable
         accessibilityRole="switch"
@@ -75,6 +99,7 @@ export default function Home({ go }: { go: (t: Tab) => void }) {
           borderWidth: 1,
           borderStyle: tough ? 'solid' : 'dashed',
           borderColor: tough ? t.accent : t.line,
+          backgroundColor: tough ? t.accentSoft : 'transparent',
           borderRadius: 18,
           padding: 14,
           minHeight: 52,
@@ -83,6 +108,10 @@ export default function Home({ go }: { go: (t: Tab) => void }) {
       >
         <T muted={!tough}>{tough ? '🫶 Tough-day mode is on — only the minimum today. That counts.' : '🌧️ Having a tough day? Tap to shrink today to the minimum.'}</T>
       </Pressable>
+      {(tough || checkedIn?.quadrant === 'unpleasant-high' || checkedIn?.quadrant === 'unpleasant-low') && (
+        <Btn title="🫧 Need a moment? Release some stress" onPress={() => setCalm(true)} style={{ marginBottom: 14 }} />
+      )}
+      <StressRelease visible={calm} onClose={() => setCalm(false)} />
 
       <Card>
         <H level={3}>Today’s check-in</H>
@@ -123,13 +152,19 @@ export default function Home({ go }: { go: (t: Tab) => void }) {
         })}
       </Card>
 
+      <SectionLabel>For you</SectionLabel>
       <Card>
         <H level={3}>A question for today</H>
-        <View style={{ borderLeftWidth: 3, borderLeftColor: t.accent, paddingLeft: 12, marginVertical: 8 }}>
+        <View style={{ backgroundColor: t.accentSoft, borderRadius: 16, padding: 14, marginVertical: 8 }}>
           <T italic size={17}>{promptOfTheDay(today)}</T>
         </View>
         <Btn title="Write about it" onPress={() => go('journal')} />
       </Card>
+
+      <OnThisDayCard />
+
+      <SectionLabel>Growing</SectionLabel>
+      <Garden />
 
       {snap && (
         <Card>
@@ -148,5 +183,90 @@ export default function Home({ go }: { go: (t: Tab) => void }) {
         </Card>
       )}
     </Screen>
+  );
+}
+
+function TodayPlanCard({ openPlan }: { openPlan: (v: PlanView, date?: string) => void }) {
+  const { data } = useStore();
+  const t = useTheme();
+  const today = todayStr();
+  const plan = planFor(data, today);
+  const evs = eventsOn(data.events, today);
+  const { done, total } = planProgress(plan);
+  const evening = new Date().getHours() >= 17;
+  return (
+    <Card>
+      <Row style={{ justifyContent: 'space-between' }}>
+        <H level={3}>☀️ Today’s plan</H>
+        {plan && total > 0 && <T muted>{done} of {total}</T>}
+      </Row>
+      {evs.map((e) => (
+        <T key={e.id} small>
+          {e.emoji} {e.title}
+          {e.time ? ` · ${to12h(e.time)}` : ''}
+        </T>
+      ))}
+      {!plan && (
+        <>
+          <T muted style={{ marginVertical: 8 }}>{data.settings.planSkippedOn === today ? 'Skipped today — that’s fine.' : 'Two minutes to plan a realistic day.'}</T>
+          <Btn primary title="Plan my day" onPress={() => openPlan('today')} />
+        </>
+      )}
+      {plan && (
+        <>
+          {!!plan.intention && <T style={{ marginVertical: 6 }}>Protecting: <T bold>{plan.intention}</T></T>}
+          {total > 0 && (
+            <View style={{ height: 10, borderRadius: 5, backgroundColor: t.primarySoft, overflow: 'hidden', marginVertical: 8 }}>
+              <View style={{ width: `${(done / total) * 100}%`, height: '100%', backgroundColor: t.desired }} />
+            </View>
+          )}
+          <Row>
+            <Btn title="Open my list" onPress={() => openPlan('today')} style={{ flex: 1 }} />
+            {!plan.evening && <Btn primary={evening} title="🌙 Evening check" onPress={() => openPlan('evening')} style={{ flex: 1 }} />}
+          </Row>
+          {plan.evening && <T small muted style={{ marginTop: 6 }}>🌙 Evening check done. Rest well.</T>}
+        </>
+      )}
+    </Card>
+  );
+}
+
+function OnThisDayCard() {
+  const { data } = useStore();
+  const mem = onThisDay(data, todayStr());
+  if (!mem.length) return null;
+  const m = mem[0];
+  return (
+    <Card>
+      <H level={3}>🕰️ On this day</H>
+      <T small muted>{m.when}</T>
+      <T italic style={{ marginTop: 4 }}>“{m.text.length > 220 ? m.text.slice(0, 220) + '…' : m.text}”</T>
+      {mem.length > 1 && <T small muted style={{ marginTop: 6 }}>+ {mem.length - 1} more memor{mem.length > 2 ? 'ies' : 'y'} from this date</T>}
+    </Card>
+  );
+}
+
+function ReviewCard({ openReview }: { openReview: (ws: string) => void }) {
+  const { data } = useStore();
+  const ws = reviewDue(data);
+  if (!ws) return null;
+  return (
+    <Card>
+      <H level={3}>🌿 Sunday review</H>
+      <T muted style={{ marginBottom: 8 }}>Five minutes: your wins, what was hard, and one change for next week.</T>
+      <Btn primary title="Look back at my week" onPress={() => openReview(ws)} />
+    </Card>
+  );
+}
+
+function LettersReadyCard({ openLetters }: { openLetters: () => void }) {
+  const { data } = useStore();
+  const ready = data.letters.filter((l) => l.openOn <= todayStr() && !l.openedAt);
+  if (!ready.length) return null;
+  return (
+    <Card>
+      <H level={3}>💌 A letter from your past self is ready</H>
+      <Btn primary title="Open it" onPress={openLetters} />
+    </Card>
   );
 }
