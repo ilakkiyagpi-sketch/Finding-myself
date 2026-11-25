@@ -113,3 +113,38 @@ export const REMIND_BEFORE_OPTIONS = [
 ];
 
 export const EVENT_EMOJIS = ['📅', '🎂', '💍', '🏥', '👶', '🎓', '✈️', '🪔', '🙏', '💼', '📝', '💊', '🏫', '🛒', '💰', '🌱'];
+
+// ---------- Smart suggestions: learn her routine ----------
+const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N} ]/gu, '').replace(/\s+/g, ' ').trim();
+
+export interface Usual {
+  text: string;
+  time?: string;
+  days: number;
+}
+
+/** Tasks she planned on at least 3 of the last 14 days, with their usual time. */
+export function usualItems(d: AppData, today: string, exclude: string[] = []): Usual[] {
+  const from = addDays(today, -14);
+  const seen = new Map<string, { text: string; days: Set<string>; times: string[] }>();
+  for (const p of d.dayPlans) {
+    if (p.date < from || p.date >= today) continue;
+    for (const i of p.items) {
+      const k = norm(i.text);
+      if (!k) continue;
+      const e = seen.get(k) ?? { text: i.text, days: new Set<string>(), times: [] };
+      e.days.add(p.date);
+      if (i.time) e.times.push(i.time);
+      seen.set(k, e);
+    }
+  }
+  const skip = new Set(exclude.map(norm));
+  return [...seen.entries()]
+    .filter(([k, e]) => e.days.size >= 3 && !skip.has(k))
+    .map(([, e]) => {
+      const ts = [...e.times].sort();
+      return { text: e.text, time: ts.length ? ts[Math.floor(ts.length / 2)] : undefined, days: e.days.size };
+    })
+    .sort((a, b) => b.days - a.days || (a.time ?? '99').localeCompare(b.time ?? '99'))
+    .slice(0, 6);
+}

@@ -50,7 +50,7 @@ export function TodayWidget({ data, dark }: { data: AppData | null; dark?: boole
         <TextWidget text={line2} maxLines={1} truncate="END" style={{ fontSize: 13, color: c.muted, marginTop: 2 }} />
       </FlexWidget>
       <FlexWidget style={{ flexDirection: 'row', flexGap: 8, marginTop: 8 }}>
-        <Button label="☀️ Plan" uri="findingmyself://plan" c={c} />
+        <Button label="🎤 Speak plan" uri="findingmyself://speak" c={c} />
         <Button label="🪞 Check in" uri="findingmyself://checkin" c={c} />
         <Button label="✍️ Write" uri="findingmyself://journal" c={c} />
       </FlexWidget>

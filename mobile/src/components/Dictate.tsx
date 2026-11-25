@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import { Btn, Chip, Row, T } from './ui';
@@ -10,7 +10,7 @@ const LANGS = [
 ];
 
 /** Speak instead of typing: appends what was said (Tamil or English) to the text. */
-export default function Dictate({ onText, label = '🎤 Speak instead of typing', hint }: { onText: (spoken: string) => void; label?: string; hint?: string }) {
+export default function Dictate({ onText, label = '🎤 Speak instead of typing', hint, autoStart }: { onText: (spoken: string) => void; label?: string; hint?: string; autoStart?: boolean }) {
   const [lang, setLang] = useState(getLang() === 'ta' ? 'ta-IN' : 'en-IN');
   const [listening, setListeningState] = useState(false);
   // Only the button that started listening reacts to speech results.
@@ -45,16 +45,21 @@ export default function Dictate({ onText, label = '🎤 Speak instead of typing'
     );
   });
 
+  // Opened from the widget's 🎤 button: start listening straight away.
+  useEffect(() => {
+    if (autoStart && Platform.OS !== 'web') start();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   if (Platform.OS === 'web') return null;
 
-  const start = async () => {
+  async function start() {
     setErr('');
     const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
     if (!perm.granted) return setErr('Microphone permission is needed to speak your journal.');
     if (!ExpoSpeechRecognitionModule.isRecognitionAvailable()) return setErr('Speech recognition isn’t available on this phone.');
     ExpoSpeechRecognitionModule.start({ lang, interimResults: true, continuous: true, addsPunctuation: true });
     setListening(true);
-  };
+  }
 
   return (
     <View style={{ marginVertical: 6 }}>

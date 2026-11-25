@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { Platform, Text, View } from 'react-native';
 import { File, Paths } from 'expo-file-system';
 import { emptyData, type AppData } from './types';
+import { loadDrafts } from './drafts';
 
 export { todayStr, daysAgoStr, uid } from './dates';
 
@@ -64,8 +65,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
-    load()
-      .then((d) => setData(d ? normalise(d) : emptyData()))
+    Promise.all([load(), loadDrafts()])
+      .then(([d]) => setData(d ? normalise(d) : emptyData()))
       .catch((e) => {
         console.error('Load failed', e);
         setData(emptyData());

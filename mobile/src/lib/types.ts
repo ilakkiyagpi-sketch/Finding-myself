@@ -151,6 +151,7 @@ export interface Settings {
   appLock?: boolean; // fingerprint / device PIN when opening the app
   autoBackup?: boolean; // weekly Google Drive backup when the app opens
   language?: 'en' | 'ta';
+  nightMode?: 'auto' | 'off'; // dim warm theme from 9:30 pm to 6 am (default auto)
 }
 
 // ---------- Rewind (life story) ----------

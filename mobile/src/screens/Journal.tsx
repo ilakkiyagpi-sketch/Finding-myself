@@ -9,6 +9,7 @@ import { Btn, Card, Chip, Field, H, LinkBtn, Row, Screen, Segmented, T, confirmA
 import { useTheme } from '../components/theme';
 import type { JournalEntry } from '../lib/types';
 import Dictate from '../components/Dictate';
+import { getDraft, useDraft } from '../lib/drafts';
 
 const hashtags = (text: string) => [...new Set((text.match(/#[\p{L}\p{N}_-]+/gu) ?? []).map((h) => h.toLowerCase()))];
 const native = Platform.OS !== 'web';
@@ -80,11 +81,26 @@ function Photo({ name, onRemove }: { name: string; onRemove?: () => void }) {
 function Writer({ close }: { close: () => void }) {
   const { update } = useStore();
   const t = useTheme();
-  const [prompt, setPrompt] = useState<string | undefined>(promptOfTheDay(todayStr()));
+  const promptD = useDraft<string | undefined>('journal.prompt', promptOfTheDay(todayStr()), () => false);
   const [group, setGroup] = useState(PROMPT_GROUPS[0].key);
-  const [text, setText] = useState('');
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [audio, setAudio] = useState<{ name: string; seconds: number }[]>([]);
+  const textD = useDraft('journal.text', '');
+  const photosD = useDraft<string[]>('journal.photos', [], (v) => !v.length);
+  const audioD = useDraft<{ name: string; seconds: number }[]>('journal.audio', [], (v) => !v.length);
+  const prompt = promptD.value;
+  const setPrompt = promptD.setValue;
+  const text = textD.value;
+  const setText = textD.setValue;
+  const photos = photosD.value;
+  const setPhotos = photosD.setValue;
+  const audio = audioD.value;
+  const setAudio = audioD.setValue;
+  const restored = textD.restored || photosD.restored || audioD.restored;
+  const clearAll = () => {
+    textD.clear();
+    photosD.clear();
+    audioD.clear();
+    promptD.clear();
+  };
   const [err, setErr] = useState('');
   const support = useSupportSheet(close);
   const g = PROMPT_GROUPS.find((x) => x.key === group)!;
@@ -93,12 +109,14 @@ function Writer({ close }: { close: () => void }) {
   const save = () => {
     const entry: JournalEntry = { id: uid(), createdAt: new Date().toISOString(), prompt, text: text.trim(), photos, audio };
     update((d) => ({ ...d, journal: [...d.journal, entry] }));
+    clearAll();
     if (needsSupport(text)) support.open();
     else close();
   };
   const cancel = async () => {
     if (canSave && !(await confirmAsync('Discard this entry?', 'What you wrote will not be saved.', 'Discard', true))) return;
     deleteMedia([...photos, ...audio.map((a) => a.name)]);
+    clearAll();
     close();
   };
   const pick = async (src: 'camera' | 'library') => {
@@ -121,6 +139,7 @@ function Writer({ close }: { close: () => void }) {
       }
     >
       <H>Write</H>
+      {restored && <T small style={{ color: t.desired, marginBottom: 6 }}>📝 Your unfinished entry is back — carry on.</T>}
       <Segmented options={PROMPT_GROUPS.map((x) => ({ key: x.key, label: x.label }))} value={group} onChange={setGroup} />
       <View style={{ gap: 8, marginBottom: 12 }}>
         <Chip label="✍️ Free write" on={!prompt} onPress={() => setPrompt(undefined)} />
@@ -185,7 +204,11 @@ export default function Journal() {
     <Screen>
       <H>Journal</H>
       <T muted style={{ marginBottom: 12 }}>Private. Ask “what” more than “why”.</T>
-      <Btn primary wide title="✍️ New entry" onPress={() => setWriting(true)} style={{ marginBottom: 14 }} />
+      {(getDraft<string>('journal.text') || getDraft<string[]>('journal.photos')?.length || getDraft<unknown[]>('journal.audio')?.length) ? (
+        <Btn primary wide title="📝 Continue my unfinished entry" onPress={() => setWriting(true)} style={{ marginBottom: 14 }} />
+      ) : (
+        <Btn primary wide title="✍️ New entry" onPress={() => setWriting(true)} style={{ marginBottom: 14 }} />
+      )}
       {data.journal.length > 3 && <Field value={q} onChangeText={setQ} placeholder="🔍 Search my journal" accessibilityLabel="Search journal" />}
       {allTags.length > 0 && (
         <Row style={{ flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>

@@ -7,6 +7,7 @@ import { Btn, Card, Chip, Chips, Field, H, Row, Screen, Slider, T, useSupportShe
 import { useTheme } from '../components/theme';
 import type { Quadrant } from '../lib/types';
 import Dictate from '../components/Dictate';
+import { useDraft } from '../lib/drafts';
 
 export default function CheckIn({ done }: { done: () => void }) {
   const { data, update } = useStore();
@@ -17,7 +18,9 @@ export default function CheckIn({ done }: { done: () => void }) {
   const [emotion, setEmotion] = useState(existing?.emotion ?? '');
   const [sleep, setSleep] = useState(existing?.sleepHours ?? 6);
   const [likeMyself, setLikeMyself] = useState(existing?.likeMyself ?? 5);
-  const [mattered, setMattered] = useState(existing?.mattered ?? '');
+  const matteredD = useDraft(`checkin.${today}.mattered`, existing?.mattered ?? '');
+  const mattered = matteredD.value;
+  const setMattered = matteredD.setValue;
   const [tags, setTags] = useState<string[]>(existing?.tags ?? []);
   const toggleTag = (k: string) => setTags((ts) => (ts.includes(k) ? ts.filter((x) => x !== k) : [...ts, k]));
   const support = useSupportSheet(done);
@@ -31,6 +34,7 @@ export default function CheckIn({ done }: { done: () => void }) {
         { id: existing?.id ?? uid(), date: today, quadrant, emotion: emotion || quadrant, sleepHours: sleep, likeMyself, mattered: mattered.trim(), tags, createdAt: new Date().toISOString() },
       ],
     }));
+    matteredD.clear();
     if (needsSupport(mattered)) support.open();
     else done();
   };

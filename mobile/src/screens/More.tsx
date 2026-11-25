@@ -305,6 +305,15 @@ export default function More({ go }: { go: (t: Tab) => void }) {
       </Card>
 
       <Card>
+        <H level={3}>🌙 Night mode</H>
+        <T small muted style={{ marginBottom: 8 }}>Very dim, warm colours from 9:30 pm to 6 am — easier on your eyes during night feeds.</T>
+        <Row style={{ gap: 8 }}>
+          <Choice label="Automatic" on={(data.settings.nightMode ?? 'auto') === 'auto'} onPress={() => update((d) => ({ ...d, settings: { ...d.settings, nightMode: 'auto' } }))} style={{ flex: 1 }} />
+          <Choice label="Off" on={data.settings.nightMode === 'off'} onPress={() => update((d) => ({ ...d, settings: { ...d.settings, nightMode: 'off' } }))} style={{ flex: 1 }} />
+        </Row>
+      </Card>
+
+      <Card>
         <H level={3}>🌿 My season & profile</H>
         <Field label="Name" value={p.name} onChangeText={(v) => update((d) => ({ ...d, profile: { ...d.profile!, name: v } }))} />
         <T bold style={{ marginBottom: 6 }}>Season of life</T>

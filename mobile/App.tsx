@@ -3,7 +3,8 @@ import { AppState, BackHandler, Linking, Pressable, Text, View } from 'react-nat
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { DataProvider, useStore } from './src/lib/store';
-import { useTheme } from './src/components/theme';
+import { isNightHour, setNightNow, useTheme } from './src/components/theme';
+import QuickAdd, { QuickAddButton } from './src/components/QuickAdd';
 import { Btn, H, Screen, T } from './src/components/ui';
 import Onboarding from './src/screens/Onboarding';
 import Home from './src/screens/Home';
@@ -26,7 +27,7 @@ import { setLang, tr } from './src/lib/i18n';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts, Nunito_400Regular, Nunito_400Regular_Italic, Nunito_600SemiBold, Nunito_700Bold, Nunito_800ExtraBold } from '@expo-google-fonts/nunito';
 import { Fraunces_600SemiBold } from '@expo-google-fonts/fraunces';
-import { ff } from './src/components/ui';
+import { FabHide, ff } from './src/components/ui';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -110,9 +111,29 @@ function useWidgetRefresh() {
   }, [data.dayPlans, data.checkIns, data.events, data.profile]); // eslint-disable-line react-hooks/exhaustive-deps
 }
 
+/** True while night mode should be on; re-checked every minute. */
+function useNight(mode: 'auto' | 'off' | undefined) {
+  const [night, setNight] = useState(() => mode !== 'off' && isNightHour());
+  useEffect(() => {
+    const check = () => setNight(mode !== 'off' && isNightHour());
+    check();
+    const id = setInterval(check, 60_000);
+    const sub = AppState.addEventListener('change', (st) => st === 'active' && check());
+    return () => {
+      clearInterval(id);
+      sub.remove();
+    };
+  }, [mode]);
+  return night;
+}
+
 function Shell() {
   const { data } = useStore();
   setLang(data.settings.language);
+  const night = useNight(data.settings.nightMode);
+  setNightNow(night);
+  const [quick, setQuick] = useState<{ open: boolean; listen: boolean }>({ open: false, listen: false });
+  const [fabHidden, setFabHidden] = useState(false);
   useWidgetRefresh();
   useUpdateCheck();
   useReminders();
@@ -167,6 +188,7 @@ function Shell() {
       if (path === 'plan') openPlan('today');
       else if (path === 'evening') openPlan('evening');
       else if (path === 'checkin') setTab('checkin');
+      else if (path === 'speak') setQuick({ open: true, listen: true });
       else if (path === 'journal') setTab('journal');
     };
     Linking.getInitialURL().then(handle);
@@ -252,9 +274,20 @@ function Shell() {
   }
 
   return (
-    <SafeAreaView key={data.settings.language ?? 'en'} style={{ flex: 1, backgroundColor: t.bg }} edges={['top', 'bottom', 'left', 'right']}>
-      <StatusBar style="auto" />
-      {body}
+    <SafeAreaView key={`${data.settings.language ?? 'en'}-${night ? 'night' : 'day'}`} style={{ flex: 1, backgroundColor: t.bg }} edges={['top', 'bottom', 'left', 'right']}>
+      <StatusBar style={night ? 'light' : 'auto'} />
+      <FabHide.Provider value={setFabHidden}>{body}</FabHide.Provider>
+      {data.profile && !fabHidden && ['home', 'plan', 'journal', 'self', 'rhythm', 'more'].includes(tab) && !(tab === 'plan' && planView === 'evening') && (
+        <QuickAddButton onPress={() => setQuick({ open: true, listen: false })} />
+      )}
+      {data.profile && (
+        <QuickAdd
+          visible={quick.open}
+          autoListen={quick.listen}
+          onClose={() => setQuick({ open: false, listen: false })}
+          openCheckIn={() => setTab('checkin')}
+        />
+      )}
     </SafeAreaView>
   );
 }
